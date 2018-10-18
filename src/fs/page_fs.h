@@ -49,8 +49,11 @@ private:
 	char* read(int file_id, int page_id, int& index);
 	void free_last_cache();
 	void write_page_to_file(int file_id, int page_id, const char* data);
-public:
+
+private:
 	page_fs();
+
+public:
 	~page_fs();
 
 	int open(const char* filename);
@@ -73,6 +76,13 @@ public:
 		char *buf = read(file_id, page_id, index);
 		dirty[index] = 1;
 		return buf;
+	}
+
+public:
+	static page_fs* get_instance()
+	{
+		static page_fs fs;
+		return &fs;
 	}
 };
 
