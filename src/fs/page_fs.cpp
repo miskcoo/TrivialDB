@@ -23,7 +23,7 @@ int page_fs::open(const char* filename)
 	if(!fid) return 0;   // fail
 
 	bool exists = file_exists(filename);
-	FILE *f = std::fopen(filename, "ab+");
+	FILE *f = std::fopen(filename, exists ? "rb+" : "wb+");
 	if(!f) return 0;
 
 	// setup file header
@@ -62,6 +62,7 @@ void page_fs::writeback(int file_id)
 		file_page_t info = index2page[i];
 		if(info.first == file_id && dirty[i])
 		{
+			debug_printf("Writeback: fid = %d, pid = %d\n", file_id, info.second);
 			std::fseek(file, (long)PAGE_SIZE * info.second, SEEK_SET);
 			std::fwrite(buffer + i * PAGE_SIZE, PAGE_SIZE, 1, file);
 			page2index.erase(page2index.find(info));
@@ -84,11 +85,11 @@ int page_fs::allocate(int file_id)
 		std::memset(tmp_buffer, 0, PAGE_SIZE);
 		std::fseek(files[file_id], 0, SEEK_END);
 		std::fwrite(tmp_buffer, PAGE_SIZE, 1, files[file_id]);
-		read(file_id, info.first_freepage);
+		read(file_id, page_id);
 	} else {
 		page_id = info.first_freepage;
 		const char *data = read(file_id, info.first_freepage);
-		info.first_freepage = *reinterpret_cast<const int*>(data);
+		info.first_freepage = reinterpret_cast<const int*>(data)[1];
 	}
 
 	return page_id;
@@ -100,8 +101,9 @@ void page_fs::deallocate(int file_id, int page_id)
 	assert(1 <= page_id && page_id <= file_info[file_id].page_num);
 
 	page_fs_header_t &info = file_info[file_id];
-	std::fseek(files[file_id], (long)PAGE_SIZE * page_id, SEEK_SET);
-	std::fwrite(&info.first_freepage, sizeof(int), 1, files[file_id]);
+	char *page_buf = read_for_write(file_id, page_id);
+	int data[2] = { PAGE_FREEBLOCK, info.first_freepage };
+	std::memcpy(page_buf, data, sizeof(data));
 	info.first_freepage = page_id;
 }
 
@@ -120,6 +122,7 @@ char* page_fs::read(int file_id, int page_id, int& index)
 		cm.access(index);
 		dirty[index] = 0;
 		page2index[key] = index;
+		index2page[index] = key;
 
 		std::fseek(files[file_id], (long)PAGE_SIZE * page_id, SEEK_SET);
 		std::fread(buffer + index * PAGE_SIZE, PAGE_SIZE, 1, files[file_id]);
@@ -146,11 +149,13 @@ void page_fs::write_page_to_file(int file_id, int page_id, const char* data)
 void page_fs::free_last_cache()
 {
 	int last = cm.last();
-	file_page_t info = index2page[last];
-	if(info.first != 0 && dirty[last])
+	file_page_t key = index2page[last];
+	if(key.first != 0 && dirty[last])
 	{
-		write_page_to_file(info.first, info.second, buffer + last * PAGE_SIZE);
-		page2index.erase(page2index.find(info));
+		debug_printf("Free cache and writeback: fid = %d, pid = %d\n", key.first, key.second);
+
+		write_page_to_file(key.first, key.second, buffer + last * PAGE_SIZE);
+		page2index.erase(page2index.find(key));
 		index2page[last] = { 0, 0 };
 	}
 }

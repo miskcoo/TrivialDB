@@ -23,7 +23,9 @@ public:
 	{
 		if(free_num)
 		{
-			return free[--free_num];
+			int id = free[--free_num];
+			used[id] = 1;
+			return id;
 		} else return 0;
 	}
 
