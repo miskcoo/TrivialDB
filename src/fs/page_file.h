@@ -1,15 +1,15 @@
-#ifndef __TRIVIALDB_PAGER__
-#define __TRIVIALDB_PAGER__
+#ifndef __TRIVIALDB_PAGE_FILE__
+#define __TRIVIALDB_PAGE_FILE__
 
 #include "page_fs.h"
 
-class pager
+class page_file
 {
 	int fid;
 public:
-	pager() : fid(0) {}
-	pager(const char* filename) : fid(0) { open(filename); }
-	~pager() { close(); }
+	page_file() : fid(0) {}
+	page_file(const char* filename) : fid(0) { open(filename); }
+	~page_file() { close(); }
 	
 	bool open(const char* filename)
 	{
@@ -24,6 +24,11 @@ public:
 		if(fid) 
 			page_fs::get_instance()->close(fid);
 		fid = 0;
+	}
+
+	void flush()
+	{
+		page_fs::get_instance()->writeback(fid);
 	}
 
 	int new_page()
