@@ -16,7 +16,6 @@ struct page_fs_header_t
 {
 	int page_num;
 	int first_freepage;
-	char extra[PAGE_SIZE >> 1];
 };
 
 class page_fs
@@ -67,7 +66,6 @@ public:
 	void deallocate(int file_id, int page_id);
 
 	void mark_dirty(int file_id, int page_id);
-	char* get_header_buffer(int file_id);
 
 	const char* read(int file_id, int page_id) {
 		int index;

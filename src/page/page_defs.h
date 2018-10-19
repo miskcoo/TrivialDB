@@ -5,13 +5,10 @@
 #include "../defs.h"
 
 #define PAGE_FIELD_REF(name, type, offset) \
-public: \
 	type name() { return *reinterpret_cast<type*>(buf + offset); } \
-private: \
 	type& name##_ref() { return *reinterpret_cast<type*>(buf + offset); }
 
 #define PAGE_FIELD_PTR(name, type, offset) \
-public: \
 	type* name() { return reinterpret_cast<type*>(buf + offset); }
 
 class pager;

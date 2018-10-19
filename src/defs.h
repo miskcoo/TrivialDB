@@ -2,14 +2,8 @@
 #define __TRIVIALDB_DEFS__
 
 /* filesystem */
-#ifdef SMALL_PAGE_FOR_DEBUG
-#define PAGE_SIZE 0x10
-#define PAGE_CACHE_CAPACITY 8
-#else
 #define PAGE_SIZE 4096
 #define PAGE_CACHE_CAPACITY 1024
-#endif
-
 #define MAX_FILE_ID 1024
 
 /* page info */
@@ -21,9 +15,7 @@
 
 /* page type (2 bytes) */
 #define PAGE_SMALL      0x4c53
-#define PAGE_LARGE      0x474c
-#define PAGE_LARGE_OV   0x4f4c
-#define PAGE_VARIANT    0x5456
+#define PAGE_DATA       0x4144
 #define PAGE_OVERFLOW   0x564f
 
 /* table info */
@@ -46,8 +38,10 @@
 #ifndef NDEBUG
 #include <cstdio>
 #define debug_printf(s, ...)  std::fprintf(stderr, s, __VA_ARGS__)
+#define debug_puts(s) std::fprintf(stderr, "%s\n", s)
 #else
 #define debug_printf(s, ...)  
+#define debug_puts(s) 
 #endif
 
 #endif

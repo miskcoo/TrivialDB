@@ -55,13 +55,6 @@ public:
 	{
 		page_fs::get_instance()->mark_dirty(fid, page_id);
 	}
-
-protected:
-	char* get_header_buffer()
-	{
-		return page_fs::get_instance()->get_header_buffer(fid);
-	}
-
 };
 
 #endif

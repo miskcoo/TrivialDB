@@ -1,8 +1,19 @@
 #include <algorithm>
 #include "data_page.h"
+#include "overflow_page.h"
 
 #define LOAD_FREEBLK(offset) \
 	reinterpret_cast<free_block_header*>(buf + (offset))
+
+void data_page::init()
+{
+	magic_ref() = PAGE_DATA;
+	flags_ref() = 0;
+	free_block_ref() = 0;
+	free_size_ref() = PAGE_SIZE - header_size();
+	size_ref() = 0;
+	bottom_used_ref() = 0;
+}
 
 void data_page::erase(int pos)
 {
@@ -53,14 +64,14 @@ bool data_page::insert(int pos, const char *data, int data_size)
 			int pid = pg->new_page();
 			overflow_page page = overflow_page(pg->read_for_write(pid), pg);
 			page.init();
-			page.set_size(size);
+			page.size_ref() = size;
 			std::memcpy(page.block(), src, size);
 			return std::make_pair(pid, page);
 		};
 
 		data += copied_size;
 		int remain = data_size - copied_size;
-		int to_copy = std::min(overflow_page::block_size, remain);
+		int to_copy = std::min(overflow_page::block_size(), remain);
 
 		auto ret = create_and_copy(data, to_copy);
 		overflow_page ov_page = ret.second;
@@ -70,9 +81,9 @@ bool data_page::insert(int pos, const char *data, int data_size)
 
 		while(remain > 0)
 		{
-			to_copy = std::min(overflow_page::block_size, remain);
+			to_copy = std::min(overflow_page::block_size(), remain);
 			auto ret = create_and_copy(data, to_copy);
-			ov_page.set_next(ret.first);
+			ov_page.next_ref() = ret.first;
 			ov_page = ret.second;
 			data   += to_copy;
 			remain -= to_copy;
@@ -84,7 +95,7 @@ bool data_page::insert(int pos, const char *data, int data_size)
 
 char* data_page::allocate(int sz)
 {
-	int unallocated = PAGE_SIZE - (header_size + size() * 2 + bottom_used());
+	int unallocated = PAGE_SIZE - (header_size() + size() * 2 + bottom_used());
 	if(unallocated < 2) return nullptr;  // no space for slot
 
 	if(unallocated - 2 >= sz)  // minus one slot size for this item
@@ -117,6 +128,8 @@ char* data_page::allocate(int sz)
 
 void data_page::defragment()
 {
+	debug_puts("Call defragment()");
+
 	int sz = size();
 	uint16_t *slots_ptr = slots();
 	int *index = new int[sz];
@@ -143,5 +156,5 @@ void data_page::defragment()
 	free_block_ref()  = 0;
 	bottom_used_ref() = total_blk_sz;
 
-	assert(total_blk_sz + header_size + 2 * size() + free_size() == PAGE_SIZE);
+	assert(total_blk_sz + header_size() + 2 * size() + free_size() == PAGE_SIZE);
 }

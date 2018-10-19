@@ -26,22 +26,25 @@ class data_page : public general_page
 		uint16_t size;  // block size (overflow is not included)
 		int ov_page;    // overflow page
 	};
+
 private:
 	char *allocate(int sz);
+	void defragment();
+
 public:
 	using general_page::general_page;
 	PAGE_FIELD_REF(magic,       uint16_t, 0);   // page type
-	PAGE_FIELD_REF(flags,       uint8_t,  2);   // flags
+	PAGE_FIELD_REF(flags,       uint16_t, 2);   // flags
 	PAGE_FIELD_REF(free_block,  uint16_t, 4);   // pointer to the first freeslot
 	PAGE_FIELD_REF(free_size,   uint16_t, 6);   // size of free space
 	PAGE_FIELD_REF(size,        uint16_t, 8);   // number of items
 	PAGE_FIELD_REF(bottom_used, uint16_t, 10);
 	PAGE_FIELD_PTR(slots,       uint16_t, 12);  // slots
-	static const int header_size = 12;
+	static constexpr int header_size() { return 12; }
 
+	void init();
 	void erase(int pos);
 	bool insert(int pos, const char *data, int data_size);
-	void defragment();
 };
 
 #endif
