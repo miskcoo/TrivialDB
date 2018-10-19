@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "data_page.h"
 
 #define LOAD_FREEBLK(offset) \
@@ -14,7 +15,7 @@ void data_page::erase(int pos)
 
 	block_header *header = (block_header*)(buf + slot);
 	if(header->ov_page)
-		pg->free_overflow_block(header->ov_page, header->ov_id);
+		pg->free_overflow_page(header->ov_page);
 
 	free_block_header *fb_header = LOAD_FREEBLK(slot);
 	fb_header->size = header->size;
@@ -23,14 +24,63 @@ void data_page::erase(int pos)
 	--size_ref();
 }
 
-/* TODO
-bool data_page::insert(int pos, const char *data, int sz)
+bool data_page::insert(int pos, const char *data, int data_size)
 {
 	assert(0 <= pos && pos <= size());
-	bool ov = (sz > PAGE_BLOCK_MAX_SIZE);
-	int size_req = ov ? PAGE_OV_KEEP_SIZE : sz;
+	int real_size = data_size + sizeof(block_header);
+	bool ov = (real_size > PAGE_BLOCK_MAX_SIZE);
+	int size_required = ov ? PAGE_OV_KEEP_SIZE : real_size;
+	char *dest = allocate(size_required);
+	if(!dest) return false;
+
+	// set slot
+	uint16_t *slots_ptr = slots();
+	for(int i = size(); i > pos; --i)
+		slots_ptr[i] = slots_ptr[i - 1];
+	slots_ptr[pos] = dest - buf;
+	
+	// set data
+	block_header* header = (block_header*)dest;
+	header->size = size_required;
+	int copied_size = size_required - sizeof(block_header);
+	std::memcpy(dest + sizeof(block_header), data, copied_size);
+
+	if(!ov)
+	{
+		header->ov_page = 0;
+	} else {
+		auto create_and_copy = [&](const char *src, int size) {
+			int pid = pg->new_page();
+			overflow_page page = overflow_page(pg->read_for_write(pid), pg);
+			page.init();
+			page.set_size(size);
+			std::memcpy(page.block(), src, size);
+			return std::make_pair(pid, page);
+		};
+
+		data += copied_size;
+		int remain = data_size - copied_size;
+		int to_copy = std::min(overflow_page::block_size, remain);
+
+		auto ret = create_and_copy(data, to_copy);
+		overflow_page ov_page = ret.second;
+		data   += to_copy;
+		remain -= to_copy;
+		header->ov_page = ret.first;
+
+		while(remain > 0)
+		{
+			to_copy = std::min(overflow_page::block_size, remain);
+			auto ret = create_and_copy(data, to_copy);
+			ov_page.set_next(ret.first);
+			ov_page = ret.second;
+			data   += to_copy;
+			remain -= to_copy;
+		}
+	}
+
+	return true;
 }
-*/
 
 char* data_page::allocate(int sz)
 {
@@ -67,4 +117,31 @@ char* data_page::allocate(int sz)
 
 void data_page::defragment()
 {
+	int sz = size();
+	uint16_t *slots_ptr = slots();
+	int *index = new int[sz];
+	for(int i = 0; i != sz; ++i)
+		index[i] = i;
+	std::sort(index, index + size(), [=](int a, int b) {
+		return slots_ptr[a] > slots_ptr[b];
+	} );
+
+	int total_blk_sz = 0;
+	char *ptr = buf + PAGE_SIZE;
+	for(int i = 0; i < sz; ++i)
+	{
+		char *blk = buf + slots_ptr[index[i]];
+		int blk_sz = reinterpret_cast<block_header*>(blk)->size;
+		total_blk_sz += blk_sz;
+		ptr -= blk_sz;
+		slots_ptr[index[i]] = ptr - buf;
+		std::memmove(ptr, blk, blk_sz);
+	}
+
+	delete[] index;
+
+	free_block_ref()  = 0;
+	bottom_used_ref() = total_blk_sz;
+
+	assert(total_blk_sz + header_size + 2 * size() + free_size() == PAGE_SIZE);
 }

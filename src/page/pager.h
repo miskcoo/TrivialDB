@@ -7,24 +7,18 @@
 
 class pager : public page_file
 {
-	struct __overflow_info
-	{
-		// pointer to the overflow page which has empty space
-		int ov_free[LOG_MAX_OVPAGE_BLOCK];
-	} *ov_info;
 public:
-	struct ov_block
-	{
-		int page_id, block_id;
-		overflow_page::block_header *header;
-		char *data;
-	};
-public:
-	pager() : ov_info(nullptr) {}
-	bool open(const char* filename);
+	using page_file::page_file;
 
-	ov_block new_overflow_page(int type);
-	void free_overflow_block(int page_id, int block_id, bool recursive = true);
+	void free_overflow_page(int page_id, bool recursive = true)
+	{
+		auto ov_page = overflow_page(read_for_write(page_id), this);
+		assert(ov_page.magic() == PAGE_OVERFLOW);
+		int next_page_id = ov_page.next();
+		free_page(page_id);
+		if(recursive && next_page_id)
+			free_overflow_page(next_page_id, true);
+	}
 };
 
 #endif

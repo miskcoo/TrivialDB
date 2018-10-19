@@ -8,9 +8,10 @@ class page_file
 	int fid;
 public:
 	page_file() : fid(0) {}
-	virtual ~page_file() { close(); }
+	page_file(const char* filename) : fid(0) { open(filename); }
+	~page_file() { close(); }
 	
-	virtual bool open(const char* filename)
+	bool open(const char* filename)
 	{
 		page_fs *fs = page_fs::get_instance();
 		if(fid) fs->close(fid);

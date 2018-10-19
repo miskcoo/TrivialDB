@@ -24,7 +24,6 @@ class data_page : public general_page
 	struct block_header
 	{
 		uint16_t size;  // block size (overflow is not included)
-		uint16_t ov_id; // block id in the overflow page
 		int ov_page;    // overflow page
 	};
 private:
@@ -41,7 +40,7 @@ public:
 	static const int header_size = 12;
 
 	void erase(int pos);
-	bool insert(int pos, const char *data, int sz);
+	bool insert(int pos, const char *data, int data_size);
 	void defragment();
 };
 

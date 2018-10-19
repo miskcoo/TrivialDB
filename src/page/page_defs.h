@@ -11,16 +11,18 @@ private: \
 	type& name##_ref() { return *reinterpret_cast<type*>(buf + offset); }
 
 #define PAGE_FIELD_PTR(name, type, offset) \
+public: \
 	type* name() { return reinterpret_cast<type*>(buf + offset); }
 
 class pager;
 
 struct general_page
 {
-	char *const buf;
-	pager *const pg;
+	char* buf;
+	pager* pg;
 	general_page(char *buf, pager *pg)
 		: buf(buf), pg(pg) {}
+	general_page(const general_page&) = default;
 };
 
 #endif
