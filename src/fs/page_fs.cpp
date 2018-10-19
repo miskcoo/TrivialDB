@@ -160,6 +160,12 @@ void page_fs::free_last_cache()
 	}
 }
 
+char* page_fs::get_header_buffer(int file_id)
+{
+	assert(fm.is_used(file_id));
+	return file_info[file_id].extra;
+}
+
 page_fs::~page_fs()
 {
 	for(int i = 1; i <= MAX_FILE_ID; ++i)

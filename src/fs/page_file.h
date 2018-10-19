@@ -8,10 +8,9 @@ class page_file
 	int fid;
 public:
 	page_file() : fid(0) {}
-	page_file(const char* filename) : fid(0) { open(filename); }
-	~page_file() { close(); }
+	virtual ~page_file() { close(); }
 	
-	bool open(const char* filename)
+	virtual bool open(const char* filename)
 	{
 		page_fs *fs = page_fs::get_instance();
 		if(fid) fs->close(fid);
@@ -54,6 +53,12 @@ public:
 	void mark_dirty(int page_id)
 	{
 		page_fs::get_instance()->mark_dirty(fid, page_id);
+	}
+
+protected:
+	char* get_header_buffer()
+	{
+		return page_fs::get_instance()->get_header_buffer(fid);
 	}
 
 };

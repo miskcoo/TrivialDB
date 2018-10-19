@@ -12,8 +12,20 @@
 
 #define MAX_FILE_ID 1024
 
-/* page type */
+/* page info */
 #define PAGE_FREEBLOCK  0x45455246
+#define LOG_MAX_OVPAGE_BLOCK 4
+#define PAGE_BLOCK_MIN_NUM   8
+#define PAGE_BLOCK_MAX_SIZE  ((PAGE_SIZE - 12) / PAGE_BLOCK_MIN_NUM - 2)
+#define PAGE_OV_KEEP_SIZE    64
+#define PAGE_FREE_BLOCK_MIN_SIZE 16
+
+/* page type (2 bytes) */
+#define PAGE_SMALL      0x4c53
+#define PAGE_LARGE      0x474c
+#define PAGE_LARGE_OV   0x4f4c
+#define PAGE_VARIANT    0x5456
+#define PAGE_OVERFLOW   0x564f
 
 /* table info */
 #define MAX_COL_NUM     32
