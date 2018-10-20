@@ -56,7 +56,11 @@ int main()
 
 	print_page(page);
 
-	page.erase(0);
+	data_page new_page { pg.read_for_write(page.split()), &pg };
+	std::puts("===== LOWER PAGE ===== ");
+	print_page(page);
+	std::puts("===== UPPER PAGE ===== ");
+	print_page(new_page);
 
 	return 0;
 }

@@ -4,6 +4,8 @@
 
 #define LOAD_FREEBLK(offset) \
 	reinterpret_cast<free_block_header*>(buf + (offset))
+#define LOAD_BLK(offset) \
+	reinterpret_cast<block_header*>(buf + (offset))
 
 void data_page::init()
 {
@@ -30,15 +32,20 @@ void data_page::erase(int pos)
 
 	free_size_ref() += 2 + header->size;
 	--size_ref();
+	set_freeblock(slot);
+}
 
-	if(slot + bottom_used() == PAGE_SIZE)
+void data_page::set_freeblock(int offset)
+{
+	block_header *header = (block_header*)(buf + offset);
+	if(offset + bottom_used() == PAGE_SIZE)
 	{
 		bottom_used_ref() -= header->size;
 	} else {
-		free_block_header *fb_header = LOAD_FREEBLK(slot);
+		free_block_header *fb_header = LOAD_FREEBLK(offset);
 		fb_header->size = header->size;
 		fb_header->next = free_block();
-		free_block_ref() = slot;
+		free_block_ref() = offset;
 	}
 }
 
@@ -101,6 +108,49 @@ bool data_page::insert(int pos, const char *data, int data_size)
 	}
 
 	return true;
+}
+
+int data_page::split()
+{
+	if(size() < PAGE_BLOCK_MIN_NUM)
+		return 0;
+	int page_id = pg->new_page();
+	if(!page_id) return 0;
+	data_page upper_page { pg->read_for_write(page_id), pg };
+	upper_page.init();
+	upper_page.flags_ref() = flags();
+
+	int to_move = used_size() / 2, moved = 0;
+	char *dest_addr = upper_page.buf + PAGE_SIZE;
+	uint16_t *dest_slots = upper_page.slots();
+	for(int i = size() - 1; i >= PAGE_BLOCK_MIN_NUM / 2; --i)
+	{
+		char *src_addr = buf + slots()[i];
+		block_header *src_header = (block_header*)src_addr;
+
+		int size_req = src_header->size + 2;
+		if(to_move - size_req < 0 && upper_page.size() >= PAGE_BLOCK_MIN_NUM / 2)
+			break;
+
+		dest_addr -= src_header->size;
+		*dest_slots++ = dest_addr - upper_page.buf;
+		std::memcpy(dest_addr, src_addr, src_header->size);
+
+		--size_ref();
+		++upper_page.size_ref();
+		upper_page.free_size_ref() -= size_req;
+		set_freeblock(slots()[i]);
+
+		to_move  -= size_req;
+		moved += size_req;
+	}
+
+	upper_page.bottom_used_ref() = moved;
+
+	assert(size() >= PAGE_BLOCK_MIN_NUM / 2);
+	assert(upper_page.size() >= PAGE_BLOCK_MIN_NUM / 2);
+
+	return page_id;
 }
 
 char* data_page::allocate(int sz)

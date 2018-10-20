@@ -30,6 +30,7 @@ class data_page : public general_page
 private:
 	char *allocate(int sz);
 	void defragment();
+	void set_freeblock(int offset);
 
 public:
 	using general_page::general_page;
@@ -41,10 +42,20 @@ public:
 	PAGE_FIELD_REF(bottom_used, uint16_t, 10);
 	PAGE_FIELD_PTR(slots,       uint16_t, 12);  // slots
 	static constexpr int header_size() { return 12; }
+	int used_size() {
+		return PAGE_SIZE - free_size() - size() * 2 - header_size();
+	}
 
 	void init();
 	void erase(int pos);
 	bool insert(int pos, const char *data, int data_size);
+
+	/* Split the (full) page into two parts, each of which has at least
+	 * (PAGE_BLOCK_MIN_NUM / 2) used blocks, and the upper part of the
+	 * splited page id is returned. If the block requirement cannnot be
+	 * satisfied, 0 is returned. The free_size of the two parts is
+	 * as close as possible. */
+	int split();
 };
 
 #endif
