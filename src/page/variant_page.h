@@ -1,5 +1,5 @@
-#ifndef __TRIVIALDB_DATA_PAGE__
-#define __TRIVIALDB_DATA_PAGE__
+#ifndef __TRIVIALDB_VARIANT_PAGE__
+#define __TRIVIALDB_VARIANT_PAGE__
 
 #include <cstring>
 #include <cassert>
@@ -13,7 +13,7 @@
  * all the data will be stored in the data page.
  * */
 
-class data_page : public general_page
+class variant_page : public general_page
 {
 	struct free_block_header
 	{

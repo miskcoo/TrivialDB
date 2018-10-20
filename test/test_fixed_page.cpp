@@ -1,13 +1,13 @@
 #include <cstdio>
 #include <fstream>
 #include "page/pager.h"
-#include "page/small_page.h"
+#include "page/fixed_page.h"
 
 int main()
 {
 	pager pg("test.db");
 	int pid = pg.new_page();
-	small_page<int> page { pg.read_for_write(pid), &pg };
+	fixed_page<int> page { pg.read_for_write(pid), &pg };
 	page.init();
 
 	for(int i = 0; i < 30; ++i)
@@ -20,7 +20,7 @@ int main()
 	std::puts("");
 
 	int new_pid = page.split();
-	small_page<int> new_page { pg.read_for_write(new_pid), &pg };
+	fixed_page<int> new_page { pg.read_for_write(new_pid), &pg };
 
 	std::puts("===== LOWER PAGE ===== ");
 	for(auto x : page) std::printf("%d ", x);

@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "data_page.h"
+#include "variant_page.h"
 #include "overflow_page.h"
 
 #define LOAD_FREEBLK(offset) \
@@ -7,9 +7,9 @@
 #define LOAD_BLK(offset) \
 	reinterpret_cast<block_header*>(buf + (offset))
 
-void data_page::init()
+void variant_page::init()
 {
-	magic_ref() = PAGE_DATA;
+	magic_ref() = PAGE_VARIANT;
 	flags_ref() = 0;
 	free_block_ref() = 0;
 	free_size_ref() = PAGE_SIZE - header_size();
@@ -17,7 +17,7 @@ void data_page::init()
 	bottom_used_ref() = 0;
 }
 
-void data_page::erase(int pos)
+void variant_page::erase(int pos)
 {
 	assert(0 <= pos && pos < size());
 
@@ -35,7 +35,7 @@ void data_page::erase(int pos)
 	set_freeblock(slot);
 }
 
-void data_page::set_freeblock(int offset)
+void variant_page::set_freeblock(int offset)
 {
 	block_header *header = (block_header*)(buf + offset);
 	if(offset + bottom_used() == PAGE_SIZE)
@@ -49,7 +49,7 @@ void data_page::set_freeblock(int offset)
 	}
 }
 
-bool data_page::insert(int pos, const char *data, int data_size)
+bool variant_page::insert(int pos, const char *data, int data_size)
 {
 	assert(0 <= pos && pos <= size());
 	int real_size = data_size + sizeof(block_header);
@@ -110,13 +110,13 @@ bool data_page::insert(int pos, const char *data, int data_size)
 	return true;
 }
 
-int data_page::split()
+int variant_page::split()
 {
 	if(size() < PAGE_BLOCK_MIN_NUM)
 		return 0;
 	int page_id = pg->new_page();
 	if(!page_id) return 0;
-	data_page upper_page { pg->read_for_write(page_id), pg };
+	variant_page upper_page { pg->read_for_write(page_id), pg };
 	upper_page.init();
 	upper_page.flags_ref() = flags();
 
@@ -153,7 +153,7 @@ int data_page::split()
 	return page_id;
 }
 
-char* data_page::allocate(int sz)
+char* variant_page::allocate(int sz)
 {
 	if(free_size() < sz + 2) return nullptr;  // no space for data
 
@@ -192,7 +192,7 @@ char* data_page::allocate(int sz)
 	} else return nullptr;
 }
 
-void data_page::defragment()
+void variant_page::defragment()
 {
 	int sz = size();
 	uint16_t *slots_ptr = slots();

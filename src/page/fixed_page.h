@@ -1,5 +1,5 @@
-#ifndef __TRIVIALDB_SMALL_PAGE__
-#define __TRIVIALDB_SMALL_PAGE__
+#ifndef __TRIVIALDB_FIXED_PAGE__
+#define __TRIVIALDB_FIXED_PAGE__
 
 #include <cstring>
 #include <cassert>
@@ -8,7 +8,7 @@
 #include "pager.h"
 
 template<typename T>
-class small_page : public general_page
+class fixed_page : public general_page
 {
 public:
 	typedef T* iterator;
@@ -16,7 +16,7 @@ public:
 	using general_page::general_page;
 	PAGE_FIELD_REF(magic,       uint16_t, 0);   // page type
 	PAGE_FIELD_REF(flags,       uint8_t,  2);   // flags
-	PAGE_FIELD_REF(field_size,  uint8_t,  3);   // log2(size of keywords)
+	PAGE_FIELD_REF(field_size,  uint8_t,  3);   // size of keywords
 	PAGE_FIELD_REF(size,        int,      4);   // number of items
 	PAGE_FIELD_PTR(children,    int,      8);   // pointer to child pages
 	int capacity() { return (PAGE_SIZE - 8) / (sizeof(T) + 4); }
@@ -24,7 +24,7 @@ public:
 	bool empty() { return size() == 0; }
 	void init()
 	{
-		magic_ref() = PAGE_SMALL;
+		magic_ref() = PAGE_FIXED;
 		flags_ref() = 0;
 		field_size_ref() = sizeof(T);
 		size_ref() = 0;
@@ -39,7 +39,7 @@ public:
 };
 
 template<typename T>
-bool small_page<T>::insert(int pos, int child, const T& key)
+bool fixed_page<T>::insert(int pos, int child, const T& key)
 {
 	assert(0 <= pos && pos <= size());
 	if(full()) return false;
@@ -59,7 +59,7 @@ bool small_page<T>::insert(int pos, int child, const T& key)
 }
 
 template<typename T>
-void small_page<T>::erase(int pos)
+void fixed_page<T>::erase(int pos)
 {
 	assert(0 <= pos && pos < size());
 
@@ -77,14 +77,14 @@ void small_page<T>::erase(int pos)
 }
 
 template<typename T>
-int small_page<T>::split()
+int fixed_page<T>::split()
 {
 	if(size() < PAGE_BLOCK_MIN_NUM)
 		return 0;
 
 	int page_id = pg->new_page();
 	if(!page_id) return 0;
-	small_page upper_page { pg->read_for_write(page_id), pg };
+	fixed_page upper_page { pg->read_for_write(page_id), pg };
 	upper_page.init();
 	upper_page.flags_ref() = flags();
 

@@ -1,9 +1,9 @@
 #include <cstdio>
 #include <fstream>
 #include "page/pager.h"
-#include "page/data_page.h"
+#include "page/variant_page.h"
 
-void print_page(data_page page)
+void print_page(variant_page page)
 {
 	for(int i = 0; i != page.size(); ++i)
 	{
@@ -20,7 +20,7 @@ int main()
 {
 	pager pg("test.db");
 	int pid = pg.new_page();
-	data_page page { pg.read_for_write(pid), &pg };
+	variant_page page { pg.read_for_write(pid), &pg };
 	page.init();
 	page.insert(0, "123456789", 9);
 	page.insert(0, "ABCDEFGHI", 9);
@@ -56,7 +56,7 @@ int main()
 
 	print_page(page);
 
-	data_page new_page { pg.read_for_write(page.split()), &pg };
+	variant_page new_page { pg.read_for_write(page.split()), &pg };
 	std::puts("===== LOWER PAGE ===== ");
 	print_page(page);
 	std::puts("===== UPPER PAGE ===== ");

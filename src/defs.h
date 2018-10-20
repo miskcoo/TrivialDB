@@ -14,8 +14,8 @@
 #define PAGE_FREE_BLOCK_MIN_SIZE 16
 
 /* page type (2 bytes) */
-#define PAGE_SMALL      0x4c53
-#define PAGE_DATA       0x4144
+#define PAGE_FIXED      0x4946
+#define PAGE_VARIANT    0x4156
 #define PAGE_OVERFLOW   0x564f
 
 /* table info */
