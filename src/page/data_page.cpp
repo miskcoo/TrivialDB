@@ -28,11 +28,18 @@ void data_page::erase(int pos)
 	if(header->ov_page)
 		pg->free_overflow_page(header->ov_page);
 
-	free_block_header *fb_header = LOAD_FREEBLK(slot);
-	fb_header->size = header->size;
-	fb_header->next = free_block();
-	free_block_ref() = slot;
+	free_size_ref() += 2 + header->size;
 	--size_ref();
+
+	if(slot + bottom_used() == PAGE_SIZE)
+	{
+		bottom_used_ref() -= header->size;
+	} else {
+		free_block_header *fb_header = LOAD_FREEBLK(slot);
+		fb_header->size = header->size;
+		fb_header->next = free_block();
+		free_block_ref() = slot;
+	}
 }
 
 bool data_page::insert(int pos, const char *data, int data_size)
@@ -55,6 +62,9 @@ bool data_page::insert(int pos, const char *data, int data_size)
 	header->size = size_required;
 	int copied_size = size_required - sizeof(block_header);
 	std::memcpy(dest + sizeof(block_header), data, copied_size);
+
+	free_size_ref() -= 2; // size of a slot
+	++size_ref();
 
 	if(!ov)
 	{
@@ -95,19 +105,20 @@ bool data_page::insert(int pos, const char *data, int data_size)
 
 char* data_page::allocate(int sz)
 {
-	int unallocated = PAGE_SIZE - (header_size() + size() * 2 + bottom_used());
-	if(unallocated < 2) return nullptr;  // no space for slot
+	if(free_size() < sz + 2) return nullptr;  // no space for data
 
-	if(unallocated - 2 >= sz)  // minus one slot size for this item
+	int unallocated = PAGE_SIZE - (header_size() + size() * 2 + bottom_used());
+	auto free_blk = LOAD_FREEBLK(free_block());
+
+	if(unallocated < 2 && free_size() - 2 >= sz)
 	{
-		bottom_used_ref() += sz;
-		free_size_ref() -= sz;
-		return buf + PAGE_SIZE - bottom_used();
+		defragment();
+		return allocate(sz);
 	}
 
-	auto free_blk = LOAD_FREEBLK(free_block());
-	if(free_blk->size >= sz)
+	if(free_block() && free_blk->size >= sz)
 	{
+		char *addr = buf + free_block();
 		if(free_blk->size - sz < PAGE_FREE_BLOCK_MIN_SIZE)
 		{
 			free_block_ref() = free_blk->next;
@@ -119,7 +130,12 @@ char* data_page::allocate(int sz)
 		}
 
 		free_size_ref() -= sz;
-		return buf + free_block();
+		return addr;
+	} else if(unallocated - 2 >= sz) {
+		// minus one slot size for this item
+		bottom_used_ref() += sz;
+		free_size_ref() -= sz;
+		return buf + PAGE_SIZE - bottom_used();
 	} else if(free_size() - 2 >= sz) {
 		defragment();
 		return allocate(sz);
@@ -128,8 +144,6 @@ char* data_page::allocate(int sz)
 
 void data_page::defragment()
 {
-	debug_puts("Call defragment()");
-
 	int sz = size();
 	uint16_t *slots_ptr = slots();
 	int *index = new int[sz];
