@@ -21,6 +21,7 @@ class data_page : public general_page
 		uint16_t next;
 	};
 
+public:
 	struct block_header
 	{
 		uint16_t size;  // block size (overflow is not included)
@@ -56,6 +57,13 @@ public:
 	 * satisfied, 0 is returned. The free_size of the two parts is
 	 * as close as possible. */
 	int split();
+
+	std::pair<block_header, char*> get_block(int id)
+	{
+		assert(0 <= id && id < size());
+		char *addr = buf + slots()[id];
+		return { *(block_header*)addr, addr + sizeof(block_header) };
+	}
 };
 
 #endif

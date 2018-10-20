@@ -5,6 +5,7 @@
 #include <cassert>
 #include <utility>
 #include "page_defs.h"
+#include "pager.h"
 
 template<typename T>
 class small_page : public general_page
@@ -29,46 +30,82 @@ public:
 		size_ref() = 0;
 	}
 
-	T* begin() { return end(); }
+	T* begin() { return end() - size(); }
 	T* end() { return reinterpret_cast<T*>(buf + PAGE_SIZE); }
 
-	/* insert element before `pos` */
-	bool insert(int pos, int child, const T& key)
-	{
-		assert(0 <= pos && pos <= size());
-		if(full()) return false;
-
-		int* ch_ptr = children();
-		for(int i = size() - 1; i >= pos; --i)
-			ch_ptr[i + 1] = ch_ptr[i];
-		ch_ptr[pos] = child;
-
-		T* key_ptr = begin();
-		for(int i = 0; i < pos; ++i, ++key_ptr)
-			*(key_ptr - 1) = *key_ptr;
-		*key_ptr = key;
-
-		++size_ref();
-		return true;
-	}
-
-	/* erase element */
-	void erase(int pos)
-	{
-		assert(0 <= pos && pos < size());
-
-		int* ch_ptr = children() + pos;
-		for(int i = size(); i > pos; --i, ++ch_ptr)
-			*ch_ptr = *(ch_ptr + 1);
-		*ch_ptr = 0;
-
-		T* key_ptr = begin() + pos;
-		for(int i = 0; i < pos; ++i, --key_ptr)
-			*key_ptr = *(key_ptr - 1);
-		*key_ptr = 0;
-
-		--size_ref();
-	}
+	bool insert(int pos, int child, const T& key);
+	void erase(int pos);
+	int split();
 };
+
+template<typename T>
+bool small_page<T>::insert(int pos, int child, const T& key)
+{
+	assert(0 <= pos && pos <= size());
+	if(full()) return false;
+
+	int* ch_ptr = children();
+	for(int i = size() - 1; i >= pos; --i)
+		ch_ptr[i + 1] = ch_ptr[i];
+	ch_ptr[pos] = child;
+
+	T* key_ptr = begin();
+	for(int i = 0; i < pos; ++i, ++key_ptr)
+		*(key_ptr - 1) = *key_ptr;
+	*(key_ptr - 1) = key;
+
+	++size_ref();
+	return true;
+}
+
+template<typename T>
+void small_page<T>::erase(int pos)
+{
+	assert(0 <= pos && pos < size());
+
+	int* ch_ptr = children() + pos;
+	for(int i = size(); i > pos; --i, ++ch_ptr)
+		*ch_ptr = *(ch_ptr + 1);
+	*ch_ptr = 0;
+
+	T* key_ptr = begin() + pos;
+	for(int i = 0; i < pos; ++i, --key_ptr)
+		*key_ptr = *(key_ptr - 1);
+	*key_ptr = 0;
+
+	--size_ref();
+}
+
+template<typename T>
+int small_page<T>::split()
+{
+	if(size() < PAGE_BLOCK_MIN_NUM)
+		return 0;
+
+	int page_id = pg->new_page();
+	if(!page_id) return 0;
+	small_page upper_page { pg->read_for_write(page_id), pg };
+	upper_page.init();
+	upper_page.flags_ref() = flags();
+
+	int lower_size = size() >> 1;
+	int upper_size = size() - lower_size;
+	std::memcpy(
+		upper_page.children(),
+		children() + upper_size,
+		(size() - upper_size) * sizeof(int)
+	);
+
+	std::memcpy(
+		upper_page.end() - upper_size, 
+		end() - upper_size, 
+		sizeof(T) * upper_size
+	);
+
+	std::memmove(end() - lower_size, begin(), sizeof(T) * lower_size);
+	size_ref() = lower_size;
+	upper_page.size_ref() = upper_size;
+	return page_id;
+}
 
 #endif
