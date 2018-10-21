@@ -96,7 +96,7 @@ btree::insert_ret btree::insert_interior(
 {
 	interior_page page { addr, pg };
 
-	int ch_pos = lower_bound(0, page.size(), [&](int id) {
+	int ch_pos = ::lower_bound(0, page.size(), [&](int id) {
 		return page.get_key(id) < key;
 	} );
 
@@ -127,7 +127,7 @@ btree::insert_ret btree::insert_leaf(
 {
 	leaf_page page { addr, pg };
 
-	int ch_pos = lower_bound(0, page.size(), [&](int id) {
+	int ch_pos = ::lower_bound(0, page.size(), [&](int id) {
 		return page.get_key(id) < key;
 	} );
 
@@ -159,4 +159,35 @@ btree::insert_ret btree::insert_leaf(
 	}
 
 	return ret;
+}
+
+btree::search_result btree::lower_bound(key_t key)
+{
+	return lower_bound(root_page_id, key);
+}
+
+btree::search_result btree::lower_bound(int now, key_t key)
+{
+	char *addr = pg->read_for_write(now);
+	uint16_t magic = general_page::get_magic_number(addr);
+	if(magic == PAGE_FIXED)
+	{
+		interior_page page { addr, pg };
+		int ch_pos = ::lower_bound(0, page.size(), [&](int id) {
+			return page.get_key(id) < key;
+		} );
+
+		ch_pos = std::min(page.size() - 1, ch_pos);
+		return lower_bound(page.get_child(ch_pos), key);
+	} else {
+		assert(magic == PAGE_VARIANT);
+		leaf_page page { addr, pg };
+		int pos = ::lower_bound(0, page.size(), [&](int id) {
+			return page.get_key(id) < key;
+		} );
+
+		if(pos == page.size() || pos == -1)
+			return { 0, 0 };
+		else return { now, pos };
+	}
 }

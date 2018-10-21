@@ -37,6 +37,15 @@ void dump(pager* pg, int pid, int parent = 0, int level = 0)
 	}
 }
 
+void dump_element(pager* pg, std::pair<int, int> elem)
+{
+	int pid = elem.first;
+	int pos = elem.second;
+	char *addr = pg->read(pid);
+	data_page<int> page { addr, pg };
+	std::printf("Key = %d, Data = %s\n", page.get_key(pos), page.get_block(pos).second + 4);
+}
+
 int main()
 {
 	pager pg("test.db");
@@ -52,7 +61,7 @@ int main()
 	insert(1200);
 	insert(1100);
 
-	const int n = 5000;
+	const int n = 1000;
 	int tmp[n];
 	for(int i = 0; i != n; ++i)
 		tmp[i] = i + 1;
@@ -60,5 +69,9 @@ int main()
 	for(int x : tmp) insert(x);
 
 	dump(&pg, bt.get_root_page_id());
+
+	dump_element(&pg, bt.lower_bound(23));
+	dump_element(&pg, bt.lower_bound(1110));
+	
 	return 0;
 }
