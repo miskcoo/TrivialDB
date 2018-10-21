@@ -12,6 +12,7 @@
 #define PAGE_BLOCK_MAX_SIZE  ((PAGE_SIZE - 12) / PAGE_BLOCK_MIN_NUM - 2)
 #define PAGE_OV_KEEP_SIZE    64
 #define PAGE_FREE_BLOCK_MIN_SIZE 16
+#define PAGE_FREE_SPACE_MAX  (PAGE_SIZE / 4 * 3)
 
 /* page type (2 bytes) */
 #define PAGE_FIXED      0x4946
@@ -43,5 +44,7 @@
 #define debug_printf(s, ...)  
 #define debug_puts(s) 
 #endif
+
+#define UNUSED(x) ((void)(x))
 
 #endif

@@ -32,6 +32,7 @@ private:
 	char *allocate(int sz);
 	void defragment();
 	void set_freeblock(int offset);
+	void erase(int pos, bool follow_ov_page);
 
 public:
 	using general_page::general_page;
@@ -41,22 +42,40 @@ public:
 	PAGE_FIELD_REF(free_size,   uint16_t, 6);   // size of free space
 	PAGE_FIELD_REF(size,        uint16_t, 8);   // number of items
 	PAGE_FIELD_REF(bottom_used, uint16_t, 10);
-	PAGE_FIELD_PTR(slots,       uint16_t, 12);  // slots
-	static constexpr int header_size() { return 12; }
+	PAGE_FIELD_REF(next_page,   int,      12);
+	PAGE_FIELD_REF(prev_page,   int,      16);
+	PAGE_FIELD_PTR(slots,       uint16_t, 20);  // slots
+	static constexpr int header_size() { return 20; }
 	int used_size() {
 		return PAGE_SIZE - free_size() - size() * 2 - header_size();
 	}
 
+	bool underflow()
+	{
+		return free_size() > PAGE_FREE_SPACE_MAX
+			|| size() < PAGE_BLOCK_MIN_NUM / 2;
+	}
+
+	bool underflow_if_remove(int pos)
+	{
+		assert(0 <= pos && pos < size());
+		int free_size_if_remove = free_size() - get_block(pos).first.size - 2;
+		return free_size_if_remove > PAGE_FREE_SPACE_MAX
+			|| size() - 1 < PAGE_BLOCK_MIN_NUM / 2;
+	}
+
 	void init();
-	void erase(int pos);
+	void erase(int pos) { erase(pos, true); }
 	bool insert(int pos, const char *data, int data_size);
+	void move_from(variant_page page, int src_pos, int dest_pos);
 
 	/* Split the (full) page into two parts, each of which has at least
 	 * (PAGE_BLOCK_MIN_NUM / 2) used blocks, and the upper part of the
 	 * splited page id is returned. If the block requirement cannnot be
 	 * satisfied, 0 is returned. The free_size of the two parts is
 	 * as close as possible. */
-	std::pair<int, variant_page> split();
+	std::pair<int, variant_page> split(int cur_id);
+	bool merge(variant_page page, int cur_id);
 
 	std::pair<block_header, char*> get_block(int id)
 	{

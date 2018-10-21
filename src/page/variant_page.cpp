@@ -15,9 +15,10 @@ void variant_page::init()
 	free_size_ref() = PAGE_SIZE - header_size();
 	size_ref() = 0;
 	bottom_used_ref() = 0;
+	next_page_ref() = prev_page_ref() = 0;
 }
 
-void variant_page::erase(int pos)
+void variant_page::erase(int pos, bool follow_ov_page)
 {
 	assert(0 <= pos && pos < size());
 
@@ -27,7 +28,7 @@ void variant_page::erase(int pos)
 		slots_ptr[i] = slots_ptr[i + 1];
 
 	block_header *header = (block_header*)(buf + slot);
-	if(header->ov_page)
+	if(header->ov_page && follow_ov_page)
 		pg->free_overflow_page(header->ov_page);
 
 	free_size_ref() += 2 + header->size;
@@ -110,7 +111,7 @@ bool variant_page::insert(int pos, const char *data, int data_size)
 	return true;
 }
 
-std::pair<int, variant_page> variant_page::split()
+std::pair<int, variant_page> variant_page::split(int cur_id)
 {
 	if(size() < PAGE_BLOCK_MIN_NUM)
 		return { 0, { nullptr, nullptr } };
@@ -119,6 +120,16 @@ std::pair<int, variant_page> variant_page::split()
 	variant_page upper_page { pg->read_for_write(page_id), pg };
 	upper_page.init();
 	upper_page.flags_ref() = flags();
+
+	if(next_page())
+	{
+		variant_page page { pg->read_for_write(next_page()), pg };
+		assert(page.magic() == magic());
+		page.prev_page_ref() = page_id;
+	}
+	upper_page.next_page_ref() = next_page();
+	upper_page.prev_page_ref() = cur_id;
+	next_page_ref() = page_id;
 
 	int to_move = used_size() / 2, moved = 0;
 	char *dest_addr = upper_page.buf + PAGE_SIZE;
@@ -153,6 +164,40 @@ std::pair<int, variant_page> variant_page::split()
 	assert(upper_page.size() >= PAGE_BLOCK_MIN_NUM / 2);
 
 	return { page_id, upper_page };
+}
+
+bool variant_page::merge(variant_page page, int cur_id)
+{
+	int space_req = PAGE_SIZE - page.free_size() - header_size();
+	if(space_req > free_size())
+		return false;
+
+	next_page_ref() = page.next_page_ref();
+	if(next_page())
+	{
+		variant_page page { pg->read_for_write(next_page()), pg };
+		assert(page.magic() == magic());
+		page.prev_page_ref() = cur_id;
+	}
+
+	defragment();
+	uint16_t *src_slot = page.slots();
+	uint16_t *dest_slot = slots() + size();
+	char *dest = buf + PAGE_SIZE - bottom_used();
+	for(int i = 0, t = page.size(); i < t; ++i)
+	{
+		char *src = page.buf + *src_slot++;
+		int sz = ((block_header*)src)->size;
+		dest -= sz;
+		std::memcpy(dest, src, sz);
+		*dest_slot++ = dest - buf;
+		bottom_used_ref() += sz;
+	}
+
+	size_ref() += page.size();
+	free_size_ref() -= space_req;
+
+	return true;
 }
 
 char* variant_page::allocate(int sz)
@@ -223,4 +268,16 @@ void variant_page::defragment()
 	bottom_used_ref() = total_blk_sz;
 
 	assert(total_blk_sz + header_size() + 2 * size() + free_size() == PAGE_SIZE);
+}
+
+void variant_page::move_from(variant_page page, int src_pos, int dest_pos)
+{
+	assert(page.magic() == magic());
+	auto src_block = page.get_block(src_pos);
+	bool succ_ins = insert(dest_pos,
+		src_block.second, src_block.first.size - sizeof(block_header));
+	UNUSED(succ_ins);
+	assert(succ_ins);
+	*(block_header*)(buf + slots()[dest_pos]) = src_block.first;
+	page.erase(src_pos, false);
 }

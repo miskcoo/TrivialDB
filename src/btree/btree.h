@@ -25,10 +25,10 @@ public:
 	btree(pager *pg, int root_page_id = 0);
 
 	void insert(key_t key, const char* data, int data_size);
+	// erase one of the elements with specified key randomly
+	bool erase(key_t key);
 	// the first element x for which x >= key
 	search_result lower_bound(key_t key);
-	// the last element x for which x >= key
-	search_result upper_bound(key_t key);
 
 	int get_root_page_id() { return root_page_id; }
 
@@ -40,6 +40,20 @@ private:
 		char *lower_half, *upper_half;
 	};
 
+	struct erase_ret
+	{
+		bool found;
+		bool merged_left, merged_right;
+		int merged_pid;
+		key_t largest;
+	};
+
+	struct merge_ret
+	{
+		bool merged_left, merged_right;
+		int merged_pid;
+	};
+
 	template<typename Page, typename ChPage>
 	insert_ret insert_post_process(int, int, int, insert_ret);
 	template<typename Page>
@@ -47,8 +61,9 @@ private:
 	insert_ret insert_interior(int, char*, key_t, const char*, int);
 	insert_ret insert_leaf(int, char*, key_t, const char*, int);
 	search_result lower_bound(int now, key_t key);
-	search_result upper_bound(int now, key_t key);
-
+	erase_ret erase(int, key_t);
+	template<typename Page>
+	merge_ret erase_try_merge(int pid, char *addr);
 };
 
 #endif

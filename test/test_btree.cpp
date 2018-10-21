@@ -10,7 +10,7 @@ void output_space(int level)
 	for(int i = 0; i != level; ++i) std::printf("  ");
 }
 
-void dump(pager* pg, int pid, int parent = 0, int level = 0)
+void dump(pager* pg, int pid, bool dump_leaf = true, int parent = 0, int level = 0)
 {
 	char *addr = pg->read(pid);
 	uint16_t magic = general_page::get_magic_number(addr);
@@ -19,20 +19,28 @@ void dump(pager* pg, int pid, int parent = 0, int level = 0)
 	if(magic == PAGE_FIXED)
 	{
 		fixed_page<int> page { addr, pg };
-		std::printf("[Interior page, parent = %d, size = %d]\n", parent, page.size());
+		std::printf("[Interior page %d] parent = %d, size = %d, prev = %d, next = %d\n",
+			pid, parent, page.size(), page.prev_page(), page.next_page());
 		for(int i = 0; i != page.size(); ++i)
 		{
-			output_space(level);
-			std::printf("Key = %d, Child = %d\n", page.get_key(i), page.get_child(i));
-			dump(pg, page.get_child(i), pid, level + 1);
+			if(dump_leaf)
+			{
+				output_space(level);
+				std::printf("Key = %d, Child = %d\n", page.get_key(i), page.get_child(i));
+			}
+			dump(pg, page.get_child(i), dump_leaf, pid, level + 1);
 		}
 	} else {
 		data_page<int> page { addr, pg };
-		std::printf("[Leaf page, parent = %d, size = %d]\n", parent, page.size());
-		for(int i = 0; i != page.size(); ++i)
+		std::printf("[Leaf page %d] parent = %d, size = %d, prev = %d, next = %d\n",
+			pid, parent, page.size(), page.prev_page(), page.next_page());
+		if(dump_leaf)
 		{
-			output_space(level);
-			std::printf("Key = %d, Data = %s\n", page.get_key(i), page.get_block(i).second + 4);
+			for(int i = 0; i != page.size(); ++i)
+			{
+				output_space(level);
+				std::printf("Key = %d, Data = %s\n", page.get_key(i), page.get_block(i).second + 4);
+			}
 		}
 	}
 }
@@ -68,10 +76,16 @@ int main()
 	std::random_shuffle(tmp, tmp + n);
 	for(int x : tmp) insert(x);
 
-	dump(&pg, bt.get_root_page_id());
+	dump(&pg, bt.get_root_page_id(), false);
 
 	dump_element(&pg, bt.lower_bound(23));
-	dump_element(&pg, bt.lower_bound(1110));
+	dump_element(&pg, bt.lower_bound(1099));
+	bt.erase(1100);
+	dump_element(&pg, bt.lower_bound(1099));
+
+	for(int x : tmp)
+		bt.erase(x);
+	dump(&pg, bt.get_root_page_id());
 	
 	return 0;
 }

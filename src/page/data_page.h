@@ -16,9 +16,9 @@ public:
 
 	PAGE_FIELD_ACCESSER(Key, key, get_block(id).second);
 
-	std::pair<int, data_page> split()
+	std::pair<int, data_page> split(int cur_id)
 	{
-		auto ret = variant_page::split();
+		auto ret = variant_page::split(cur_id);
 		return { ret.first,
 			*reinterpret_cast<data_page*>(&ret.second)
 		};
