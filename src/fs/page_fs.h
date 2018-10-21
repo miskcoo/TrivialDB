@@ -67,7 +67,7 @@ public:
 
 	void mark_dirty(int file_id, int page_id);
 
-	const char* read(int file_id, int page_id) {
+	char* read(int file_id, int page_id) {
 		int index;
 		return read(file_id, page_id, index);
 	}

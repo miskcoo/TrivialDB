@@ -19,6 +19,9 @@ public:
 	PAGE_FIELD_REF(field_size,  uint8_t,  3);   // size of keywords
 	PAGE_FIELD_REF(size,        int,      4);   // number of items
 	PAGE_FIELD_PTR(children,    int,      8);   // pointer to child pages
+	PAGE_FIELD_ACCESSER(T,   key,   begin() + id);
+	PAGE_FIELD_ACCESSER(int, child, children() + id);
+	static constexpr int header_size() { return 8; }
 	int capacity() { return (PAGE_SIZE - 8) / (sizeof(T) + 4); }
 	bool full() { return capacity() == size(); }
 	bool empty() { return size() == 0; }
@@ -35,7 +38,7 @@ public:
 
 	bool insert(int pos, int child, const T& key);
 	void erase(int pos);
-	int split();
+	std::pair<int, fixed_page> split();
 };
 
 template<typename T>
@@ -77,13 +80,13 @@ void fixed_page<T>::erase(int pos)
 }
 
 template<typename T>
-int fixed_page<T>::split()
+std::pair<int, fixed_page<T>> fixed_page<T>::split()
 {
 	if(size() < PAGE_BLOCK_MIN_NUM)
-		return 0;
+		return { 0, { nullptr, nullptr } };
 
 	int page_id = pg->new_page();
-	if(!page_id) return 0;
+	if(!page_id) return { 0, { nullptr, nullptr } };
 	fixed_page upper_page { pg->read_for_write(page_id), pg };
 	upper_page.init();
 	upper_page.flags_ref() = flags();
@@ -105,7 +108,7 @@ int fixed_page<T>::split()
 	std::memmove(end() - lower_size, begin(), sizeof(T) * lower_size);
 	size_ref() = lower_size;
 	upper_page.size_ref() = upper_size;
-	return page_id;
+	return { page_id, upper_page };
 }
 
 #endif

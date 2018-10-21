@@ -41,7 +41,7 @@ public:
 		page_fs::get_instance()->deallocate(fid, page_id);
 	}
 
-	const char* read(int page_id)
+	char* read(int page_id)
 	{
 		return page_fs::get_instance()->read(fid, page_id);
 	}

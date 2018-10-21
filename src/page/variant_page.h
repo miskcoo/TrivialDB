@@ -56,7 +56,7 @@ public:
 	 * splited page id is returned. If the block requirement cannnot be
 	 * satisfied, 0 is returned. The free_size of the two parts is
 	 * as close as possible. */
-	int split();
+	std::pair<int, variant_page> split();
 
 	std::pair<block_header, char*> get_block(int id)
 	{

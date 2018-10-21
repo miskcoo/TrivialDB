@@ -110,12 +110,12 @@ bool variant_page::insert(int pos, const char *data, int data_size)
 	return true;
 }
 
-int variant_page::split()
+std::pair<int, variant_page> variant_page::split()
 {
 	if(size() < PAGE_BLOCK_MIN_NUM)
-		return 0;
+		return { 0, { nullptr, nullptr } };
 	int page_id = pg->new_page();
-	if(!page_id) return 0;
+	if(!page_id) return { 0, { nullptr, nullptr } };
 	variant_page upper_page { pg->read_for_write(page_id), pg };
 	upper_page.init();
 	upper_page.flags_ref() = flags();
@@ -138,6 +138,7 @@ int variant_page::split()
 
 		--size_ref();
 		++upper_page.size_ref();
+		free_size_ref() += size_req;
 		upper_page.free_size_ref() -= size_req;
 		set_freeblock(slots()[i]);
 
@@ -145,12 +146,13 @@ int variant_page::split()
 		moved += size_req;
 	}
 
+	std::reverse(upper_page.slots(), upper_page.slots() + upper_page.size());
 	upper_page.bottom_used_ref() = moved;
 
 	assert(size() >= PAGE_BLOCK_MIN_NUM / 2);
 	assert(upper_page.size() >= PAGE_BLOCK_MIN_NUM / 2);
 
-	return page_id;
+	return { page_id, upper_page };
 }
 
 char* variant_page::allocate(int sz)
