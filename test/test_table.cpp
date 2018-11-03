@@ -39,8 +39,21 @@ int main()
 
 	tb.remove_record(2);
 	tb.dump_record(1);
-	tb.dump_record(2);
 	tb.dump_record(3);
+
+	assert((int)tb.get_record_ptr(1).valid());
+	assert(!(int)tb.get_record_ptr(2).valid());
+	assert((int)tb.get_record_ptr(3).valid());
+	assert(!(int)tb.get_record_ptr(4).valid());
+
+	int x = 100, y;
+	tb.get_record_ptr(1).seek(8).read(&y, 4);
+	assert(y == 43);
+	tb.modify_record(1, 1, &x);
+	tb.get_record_ptr(1).seek(8).read(&y, 4);
+	assert(y == x);
+
+	puts("===== Pass! =====");
 	
 	return 0;
 }

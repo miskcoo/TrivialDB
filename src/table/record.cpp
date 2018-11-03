@@ -10,14 +10,17 @@ void record_manager::open(int pid, int pos, bool dirty)
 	this->dirty = dirty;
 	this->offset = 0;
 
-	data_page<int> page { dirty ? pg->read_for_write(pid) : pg->read(pid), pg };
-	auto block = page.get_block(pos);
-	remain = block.first.size;
-	next_pid = block.first.ov_page;
-	cur_buf = block.second;
+	if(pid)
+	{
+		data_page<int> page { dirty ? pg->read_for_write(pid) : pg->read(pid), pg };
+		auto block = page.get_block(pos);
+		remain = block.first.size;
+		next_pid = block.first.ov_page;
+		cur_buf = block.second;
+	}
 }
 
-void record_manager::seek(int offset)
+record_manager& record_manager::seek(int offset)
 {
 	if(offset >= this->offset)
 	{
@@ -32,9 +35,11 @@ void record_manager::seek(int offset)
 		cur_buf = block.second;
 		forward(offset);
 	}
+
+	return *this;
 }
 
-void record_manager::write(const void *b, int size)
+record_manager& record_manager::write(const void *b, int size)
 {
 	const char *data = (const char*)b;
 	while(size)
@@ -46,9 +51,11 @@ void record_manager::write(const void *b, int size)
 		size -= l;
 		forward(l);
 	}
+
+	return *this;
 }
 
-void record_manager::read(void *b, int size)
+record_manager& record_manager::read(void *b, int size)
 {
 	char *data = (char*)b;
 	while(size)
@@ -59,9 +66,11 @@ void record_manager::read(void *b, int size)
 		size -= l;
 		forward(l);
 	}
+
+	return *this;
 }
 
-void record_manager::forward(int size)
+record_manager& record_manager::forward(int size)
 {
 	remain -= size;
 	offset += size;
@@ -75,4 +84,15 @@ void record_manager::forward(int size)
 		cur_pid = next_pid;
 		next_pid = page.next();
 	}
+
+	return *this;
+}
+
+bool record_manager::forward_page()
+{
+	if(next_pid)
+	{
+		forward(remain);
+		return true;
+	} else return false;
 }

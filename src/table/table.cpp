@@ -107,9 +107,9 @@ bool table_manager::set_temp_record(int col, const void *data)
 	return true;
 }
 
-void table_manager::init_record()
+void table_manager::init_temp_record()
 {
-	// TODO: add default value
+	// TODO: add default values
 	std::memset(tmp_record, 0, tmp_record_size);
 }
 
@@ -118,9 +118,9 @@ int table_manager::insert_record()
 	int *rid = (int*)tmp_record + header.col_offset[header.main_index];
 	if(header.is_main_index_additional)
 		*rid = header.auto_inc;
-	// TODO: validation record
+	// TODO: validate record
 	btr->insert(*rid, tmp_record, tmp_record_size);
-	// TODO: update index
+	// TODO: update corresponding index
 	if(header.is_main_index_additional)
 	{
 		++header.records_num;
@@ -131,18 +131,24 @@ int table_manager::insert_record()
 
 bool table_manager::remove_record(int rid)
 {
-	// TODO: remove index
+	// TODO: remove corresponding index
 	return btr->erase(rid);
 }
 
-record_manager table_manager::get_record_ptr(int rid)
+record_manager table_manager::get_record_ptr_lower_bound(int rid, bool dirty)
 {
 	auto ret = btr->lower_bound(rid);
-	assert(ret.first != 0);
 	record_manager r(pg.get());
-	r.open(ret.first, ret.second, false);
-	// TODO: verify rid
+	r.open(ret.first, ret.second, dirty);
 	return r;
+}
+
+record_manager table_manager::get_record_ptr(int rid, bool dirty)
+{
+	auto r = get_record_ptr_lower_bound(rid, dirty);
+	if(r.valid() && *(int*)r.ptr().first == rid)
+		return r;
+	else return record_manager(pg.get());
 }
 
 void table_manager::dump_record(int rid)
@@ -172,4 +178,16 @@ void table_manager::dump_record(int rid)
 				debug_puts("[Error] Data type not supported!");
 		}
 	}
+}
+
+bool table_manager::modify_record(int rid, int col, const void* data)
+{
+	record_manager rec = get_record_ptr(rid, true);
+	if(!rec.valid()) return false;
+	assert(col >= 0 && col < header.col_num);
+	// TODO: check validation
+	rec.seek(header.col_offset[col]);
+	rec.write(data, header.col_length[col]);
+	// TODO: update index
+	return true;
 }

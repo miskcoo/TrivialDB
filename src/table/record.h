@@ -12,12 +12,23 @@ class record_manager
 	int remain, next_pid, offset;
 	bool dirty;
 public:
-	record_manager(pager *pg) : pg(pg) {}
+	record_manager(pager *pg) : pg(pg), pid(0) {}
 	void open(int pid, int pos, bool dirty);
-	void seek(int offset);
-	void write(const void* data, int size);
-	void read(void* buf, int size);
-	void forward(int size);
+	record_manager& seek(int offset);
+	record_manager& write(const void* data, int size);
+	record_manager& read(void* buf, int size);
+	record_manager& forward(int size);
+	bool forward_page();
+	std::pair<char*, int> ptr_for_write();
+	std::pair<const char*, int> ptr() { return { cur_buf, remain }; }
+	bool valid() const { return pid != 0; }
 };
+
+inline std::pair<char*, int> record_manager::ptr_for_write()
+{
+	if(!dirty)
+		pg->mark_dirty(cur_pid);
+	return { cur_buf, remain };
+}
 
 #endif

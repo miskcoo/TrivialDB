@@ -36,14 +36,17 @@ public:
 
 	int lookup_column(const char *col_name);
 
-	void init_record();
+	void init_temp_record();
 	int insert_record();
 	bool remove_record(int rid);
+	bool modify_record(int rid, int col, const void* data);
 	bool set_temp_record(int col, const void* data);
 
-	record_manager get_record_ptr(int rid);
+	// get the record R such that R.rid = min_{r.rid >= rid} r.rid
+	record_manager get_record_ptr_lower_bound(int rid, bool dirty=false);
+	// get the record R such that R.rid = rid
+	record_manager get_record_ptr(int rid, bool dirty=false);
 	void dump_record(int rid);
-
 };
 
 #endif
