@@ -4,6 +4,8 @@
 #include <cassert>
 #include "variant_page.h"
 
+/* In the data page, the first sizeof(Key) bytes must be
+ * the key, and the remaining bytes are free to use. */
 template<typename Key>
 class data_page : public variant_page
 {

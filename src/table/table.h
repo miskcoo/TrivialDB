@@ -1,32 +1,49 @@
 #ifndef __TRIVIALDB_TABLE__
 #define __TRIVIALDB_TABLE__
+
 #include <stdint.h>
+#include <fstream>
+#include <memory>
 
 #include "../defs.h"
+#include "../btree/btree.h"
+#include "table_header.h"
+#include "record.h"
 
-struct table_header_t
+/*    Data page structure for rows
+ *  | main index | notnull | fixed col 1 | ... | fixed col n |
+ */
+
+class table_manager
 {
-	// the number of all columns
-	uint8_t col_num;
-	// the number of size-variant columns
-	uint8_t variant_field_num;
-	// main index for this table
-	uint8_t main_index;
+	bool is_open;
+	table_header_t header;
+	std::shared_ptr<btree> btr;
+	std::shared_ptr<pager> pg;
+	std::string tname;
+	const char *error_msg;
 
-	uint8_t col_flags[MAX_COL_NUM];
-	uint8_t col_type[MAX_COL_NUM];
+	int tmp_record_size;
+	char *tmp_record;
+	int *tmp_null_mark;
+	void allocate_temp_record();
+public:
+	table_manager() : is_open(false), tmp_record(nullptr) {}
+	~table_manager() { if(is_open) close(); }
+	bool create(const char *table_name, table_header_t header);
+	bool open(const char *table_name);
+	void close();
 
-	// the length of columns, 0 when the field is size-variant
-	int col_length[MAX_COL_NUM];
-	// the offset of columns, 0 when the field is size-variant
-	int col_offset[MAX_COL_NUM];
-	// root page of index
-	int index_root[MAX_COL_NUM];
-	// auto increment counter
-	int64_t auto_inc[MAX_COL_NUM];
+	int lookup_column(const char *col_name);
 
-	char col_name[MAX_COL_NUM][MAX_NAME_LEN];
-	char table_name[MAX_NAME_LEN];
+	void init_record();
+	int insert_record();
+	bool remove_record(int rid);
+	bool set_temp_record(int col, const void* data);
+
+	record_manager get_record_ptr(int rid);
+	void dump_record(int rid);
+
 };
 
 #endif

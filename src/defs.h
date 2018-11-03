@@ -29,11 +29,9 @@
 #define COL_FLAG_AUTOINC   8
 
 #define COL_TYPE_INT       1
-#define COL_TYPE_BIGINT    2
 #define COL_TYPE_FLOAT     3
-#define COL_TYPE_DOUBLE    4
-#define COL_TYPE_CHAR      5
-#define COL_TYPE_VARCHAR   30
+// Note the actual data has one more zero byte
+#define COL_TYPE_VARCHAR   5
 
 /* debug */
 #ifndef NDEBUG
