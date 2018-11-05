@@ -12,7 +12,7 @@
 	type* name() { return reinterpret_cast<type*>(buf + offset); }
 
 #define PAGE_FIELD_ACCESSER(type, name, addr) \
-	const type& get_##name(int id) { \
+	type get_##name(int id) { \
 		assert(0 <= id && id < size()); \
 		return *reinterpret_cast<type*>(addr); \
 	} \

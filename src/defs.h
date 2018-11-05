@@ -16,6 +16,7 @@
 
 /* page type (2 bytes) */
 #define PAGE_FIXED      0x4946
+#define PAGE_INDEX_LEAF 0x4947
 #define PAGE_VARIANT    0x4156
 #define PAGE_OVERFLOW   0x564f
 

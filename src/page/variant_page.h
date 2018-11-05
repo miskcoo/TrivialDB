@@ -64,7 +64,7 @@ public:
 			|| size() - 1 < PAGE_BLOCK_MIN_NUM / 2;
 	}
 
-	void init();
+	void init(int = 0);
 	void erase(int pos) { erase(pos, true); }
 	bool insert(int pos, const char *data, int data_size);
 	void move_from(variant_page page, int src_pos, int dest_pos);

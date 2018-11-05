@@ -1,38 +1,42 @@
 #include "btree.h"
 #include "../algo/search.h"
 
-template<typename KeyType, typename Comparer>
-btree<KeyType, Comparer>::btree(pager *pg, int root_page_id, Comparer compare)
-	: pg(pg), root_page_id(root_page_id), compare(compare)
+template<typename KeyType, typename Comparer, typename Copier>
+btree<KeyType, Comparer, Copier>::btree(
+		pager *pg, int root_page_id, int field_size,
+		Comparer compare, Copier copier)
+	: pg(pg), root_page_id(root_page_id),
+	  field_size(field_size), compare(compare), copy_to_temp(copier)
 {
 	if(root_page_id == 0)
 	{
 		this->root_page_id = pg->new_page();
-		leaf_page { pg->read_for_write(this->root_page_id), pg }.init();
+		leaf_page { pg->read_for_write(this->root_page_id), pg }.init(field_size);
 	}
 }
 
-template<typename KeyType, typename Comparer>
+template<typename KeyType, typename Comparer, typename Copier>
 template<typename Page>
-inline void btree<KeyType, Comparer>::insert_split_root(insert_ret ret)
+inline void btree<KeyType, Comparer, Copier>::insert_split_root(insert_ret ret)
 {
 	if(ret.split)
 	{
 		debug_puts("B-tree split root.");
 		int new_pid = pg->new_page();
 		interior_page page { pg->read_for_write(new_pid), pg };
-		page.init();
+		page.init(field_size);
 
 		Page lower { ret.lower_half, pg };
 		Page upper { ret.upper_half, pg };
-		page.insert(0, root_page_id, lower.get_key(lower.size() - 1));
-		page.insert(1, ret.upper_pid, upper.get_key(upper.size() - 1));
+		page.insert(0, lower.get_key(lower.size() - 1), root_page_id);
+		page.insert(1, upper.get_key(upper.size() - 1), ret.upper_pid);
 		root_page_id = new_pid;
 	}
 }
 
-template<typename KeyType, typename Comparer>
-void btree<KeyType, Comparer>::insert(key_t key, const char *data, int data_size)
+template<typename KeyType, typename Comparer, typename Copier>
+void btree<KeyType, Comparer, Copier>::insert(
+		key_t key, const char *data, int data_size)
 {
 	char *addr = pg->read_for_write(root_page_id);
 	uint16_t magic = general_page::get_magic_number(addr);
@@ -42,17 +46,17 @@ void btree<KeyType, Comparer>::insert(key_t key, const char *data, int data_size
 			root_page_id, addr, key, data, data_size);
 		insert_split_root<interior_page>(ret);
 	} else {
-		assert(magic == PAGE_VARIANT);
+		assert(magic == PAGE_VARIANT || magic == PAGE_INDEX_LEAF);
 		insert_ret ret = insert_leaf(
 			root_page_id, addr, key, data, data_size);
 		insert_split_root<leaf_page>(ret);
 	}
 }
 
-template<typename KeyType, typename Comparer>
+template<typename KeyType, typename Comparer, typename Copier>
 template<typename Page, typename ChPage>
-inline typename btree<KeyType, Comparer>::insert_ret
-btree<KeyType, Comparer>::insert_post_process(
+inline typename btree<KeyType, Comparer, Copier>::insert_ret
+btree<KeyType, Comparer, Copier>::insert_post_process(
 	int pid, int ch_pid, int ch_pos, insert_ret ch_ret)
 {
 	insert_ret ret;
@@ -63,8 +67,8 @@ btree<KeyType, Comparer>::insert_post_process(
 		ChPage lower_ch { ch_ret.lower_half, pg };
 		ChPage upper_ch { ch_ret.upper_half, pg };
 		page.set_key(ch_pos, lower_ch.get_key(lower_ch.size() - 1));
-		key_t ch_largest = upper_ch.get_key(upper_ch.size() - 1);
-		bool succ_ins = page.insert(ch_pos + 1, ch_ret.upper_pid, ch_largest);
+		key_t ch_largest = copy_to_temp(upper_ch.get_key(upper_ch.size() - 1));
+		bool succ_ins = page.insert(ch_pos + 1, ch_largest, ch_ret.upper_pid);
 		if(!succ_ins)
 		{
 			auto upper = page.split(pid);
@@ -73,12 +77,12 @@ btree<KeyType, Comparer>::insert_post_process(
 			if(ch_pos < lower_page.size())
 			{
 				succ_ins = lower_page.insert(
-					ch_pos + 1, ch_ret.upper_pid, ch_largest);
+					ch_pos + 1, ch_largest, ch_ret.upper_pid);
 				assert(succ_ins);
 			} else {
 				succ_ins = upper_page.insert(
 					ch_pos - lower_page.size() + 1,
-					ch_ret.upper_pid, ch_largest
+					ch_largest, ch_ret.upper_pid
 				);
 				assert(succ_ins);
 			}
@@ -96,15 +100,15 @@ btree<KeyType, Comparer>::insert_post_process(
 	return ret;
 }
 
-template<typename KeyType, typename Comparer>
-typename btree<KeyType, Comparer>::insert_ret
-btree<KeyType, Comparer>::insert_interior(
+template<typename KeyType, typename Comparer, typename Copier>
+typename btree<KeyType, Comparer, Copier>::insert_ret
+btree<KeyType, Comparer, Copier>::insert_interior(
 	int now, char* addr, key_t key, const char *data, int data_size)
 {
 	interior_page page { addr, pg };
 
 	int ch_pos = ::lower_bound(0, page.size(), [&](int id) {
-		return compare(page.get_key(id), key);
+		return compare(page.get_key(id), key) < 0;
 	} );
 
 	ch_pos = std::min(page.size() - 1, ch_pos);
@@ -121,7 +125,7 @@ btree<KeyType, Comparer>::insert_interior(
 		);
 	} else {
 		// leaf page
-		assert(ch_magic == PAGE_VARIANT);
+		assert(ch_magic == PAGE_VARIANT || ch_magic == PAGE_INDEX_LEAF);
 		auto ch_ret = insert_leaf(ch_pid, ch_addr, key, data, data_size);
 		return insert_post_process<interior_page, leaf_page>(
 			now, ch_pid, ch_pos, ch_ret
@@ -129,21 +133,25 @@ btree<KeyType, Comparer>::insert_interior(
 	}
 }
 
-template<typename KeyType, typename Comparer>
-typename btree<KeyType, Comparer>::insert_ret 
-btree<KeyType, Comparer>::insert_leaf(
+template<typename KeyType, typename Comparer, typename Copier>
+typename btree<KeyType, Comparer, Copier>::insert_ret 
+btree<KeyType, Comparer, Copier>::insert_leaf(
 	int now, char* addr, key_t key, const char *data, int data_size)
 {
 	leaf_page page { addr, pg };
 
 	int ch_pos = ::lower_bound(0, page.size(), [&](int id) {
-		return compare(page.get_key(id), key);
+		return compare(page.get_key(id), key) < 0;
 	} );
 
 	insert_ret ret;
 	ret.split = false;
 
+	/* When leaf_page is variant_page, insert will act as original meaning,
+	 * When leaf_page is fixed_page, data_size will be regarded as child,
+	 * and both data and key will be regarded as key */
 	bool succ_ins = page.insert(ch_pos, data, data_size);
+
 	if(!succ_ins)
 	{
 		auto upper = page.split(now);
@@ -170,16 +178,16 @@ btree<KeyType, Comparer>::insert_leaf(
 	return ret;
 }
 
-template<typename KeyType, typename Comparer>
-typename btree<KeyType, Comparer>::search_result 
-btree<KeyType, Comparer>::lower_bound(key_t key)
+template<typename KeyType, typename Comparer, typename Copier>
+typename btree<KeyType, Comparer, Copier>::search_result 
+btree<KeyType, Comparer, Copier>::lower_bound(key_t key)
 {
 	return lower_bound(root_page_id, key);
 }
 
-template<typename KeyType, typename Comparer>
-typename btree<KeyType, Comparer>::search_result
-btree<KeyType, Comparer>::lower_bound(int now, key_t key)
+template<typename KeyType, typename Comparer, typename Copier>
+typename btree<KeyType, Comparer, Copier>::search_result
+btree<KeyType, Comparer, Copier>::lower_bound(int now, key_t key)
 {
 	char *addr = pg->read_for_write(now);
 	uint16_t magic = general_page::get_magic_number(addr);
@@ -187,16 +195,16 @@ btree<KeyType, Comparer>::lower_bound(int now, key_t key)
 	{
 		interior_page page { addr, pg };
 		int ch_pos = ::lower_bound(0, page.size(), [&](int id) {
-			return compare(page.get_key(id), key);
+			return compare(page.get_key(id), key) < 0;
 		} );
 
 		ch_pos = std::min(page.size() - 1, ch_pos);
 		return lower_bound(page.get_child(ch_pos), key);
 	} else {
-		assert(magic == PAGE_VARIANT);
+		assert(magic == PAGE_VARIANT || magic == PAGE_INDEX_LEAF);
 		leaf_page page { addr, pg };
 		int pos = ::lower_bound(0, page.size(), [&](int id) {
-			return compare(page.get_key(id), key);
+			return compare(page.get_key(id), key) < 0;
 		} );
 
 		if(pos == page.size())
@@ -205,10 +213,10 @@ btree<KeyType, Comparer>::lower_bound(int now, key_t key)
 	}
 }
 
-template<typename KeyType, typename Comparer>
+template<typename KeyType, typename Comparer, typename Copier>
 template<typename Page>
-typename btree<KeyType, Comparer>::merge_ret
-btree<KeyType, Comparer>::erase_try_merge(int pid, char *addr)
+typename btree<KeyType, Comparer, Copier>::merge_ret
+btree<KeyType, Comparer, Copier>::erase_try_merge(int pid, char *addr)
 {
 	Page page { addr, pg };
 
@@ -261,9 +269,9 @@ btree<KeyType, Comparer>::erase_try_merge(int pid, char *addr)
 	return { false, false, 0 };
 }
 
-template<typename KeyType, typename Comparer>
-typename btree<KeyType, Comparer>::erase_ret
-btree<KeyType, Comparer>::erase(int now, key_t key)
+template<typename KeyType, typename Comparer, typename Copier>
+typename btree<KeyType, Comparer, Copier>::erase_ret
+btree<KeyType, Comparer, Copier>::erase(int now, key_t key)
 {
 	char *addr = pg->read_for_write(now);
 	uint16_t magic = general_page::get_magic_number(addr);
@@ -271,7 +279,7 @@ btree<KeyType, Comparer>::erase(int now, key_t key)
 	{
 		interior_page page { addr, pg };
 		int ch_pos = ::lower_bound(0, page.size(), [&](int id) {
-			return compare(page.get_key(id), key);
+			return compare(page.get_key(id), key) < 0;
 		} );
 
 		ch_pos = std::min(page.size() - 1, ch_pos);
@@ -296,26 +304,26 @@ btree<KeyType, Comparer>::erase(int now, key_t key)
 
 		merge_ret mret = erase_try_merge<interior_page>(now, addr);
 		return { true, mret.merged_left, mret.merged_right,
-			mret.merged_pid, page.get_key(page.size() - 1) };
+			mret.merged_pid, copy_to_temp(page.get_key(page.size() - 1)) };
 	} else {
-		assert(magic == PAGE_VARIANT);
+		assert(magic == PAGE_VARIANT || magic == PAGE_INDEX_LEAF);
 		leaf_page page { addr, pg };
 		int pos = ::lower_bound(0, page.size(), [&](int id) {
-			return compare(page.get_key(id), key);
+			return compare(page.get_key(id), key) < 0;
 		} );
 
-		if(pos == page.size() || page.get_key(pos) != key)
+		if(pos == page.size() || compare(page.get_key(pos), key) != 0)
 			return { false, false, false, 0, 0};
 
 		page.erase(pos);
 		auto ret = erase_try_merge<leaf_page>(now, addr);
 		return { true, ret.merged_left, ret.merged_right,
-			ret.merged_pid, page.get_key(page.size() - 1) };
+			ret.merged_pid, copy_to_temp(page.get_key(page.size() - 1)) };
 	}
 }
 
-template<typename KeyType, typename Comparer>
-bool btree<KeyType, Comparer>::erase(key_t key)
+template<typename KeyType, typename Comparer, typename Copier>
+bool btree<KeyType, Comparer, Copier>::erase(key_t key)
 {
 	erase_ret ret = erase(root_page_id, key);
 
@@ -336,4 +344,8 @@ bool btree<KeyType, Comparer>::erase(key_t key)
 }
 
 /* Explicitly instantiate templates */
-template class btree<int, bool(*)(int, int)>;
+template class btree<int, int(*)(int, int), int(*)(int)>;
+template class btree<const char*,
+		 int(*)(const char*, const char*),
+		 __impl::index_btree_copier_t
+	 >;

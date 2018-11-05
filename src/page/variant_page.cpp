@@ -7,7 +7,7 @@
 #define LOAD_BLK(offset) \
 	reinterpret_cast<block_header*>(buf + (offset))
 
-void variant_page::init()
+void variant_page::init(int)
 {
 	magic_ref() = PAGE_VARIANT;
 	flags_ref() = 0;
