@@ -11,12 +11,9 @@ template<typename T>
 class fixed_page : public general_page
 {
 public:
-	typedef T* iterator;
-public:
 	using general_page::general_page;
 	PAGE_FIELD_REF(magic,       uint16_t, 0);   // page type
-	PAGE_FIELD_REF(flags,       uint8_t,  2);   // flags
-	PAGE_FIELD_REF(field_size,  uint8_t,  3);   // size of keywords
+	PAGE_FIELD_REF(field_size,  uint16_t, 2);   // size of keywords
 	PAGE_FIELD_REF(size,        int,      4);   // number of items
 	PAGE_FIELD_REF(next_page,   int,      8);
 	PAGE_FIELD_REF(prev_page,   int,      12);
@@ -24,7 +21,7 @@ public:
 	PAGE_FIELD_ACCESSER(T,   key,   begin() + id);
 	PAGE_FIELD_ACCESSER(int, child, children() + id);
 	static constexpr int header_size() { return 16; }
-	int capacity() { return (PAGE_SIZE - 8) / (sizeof(T) + 4); }
+	int capacity() { return (PAGE_SIZE - header_size()) / (sizeof(T) + 4); }
 	bool full() { return capacity() == size(); }
 	bool empty() { return size() == 0; }
 	bool underflow() { return size() < capacity() / 2 - 1; }
@@ -32,14 +29,13 @@ public:
 	void init()
 	{
 		magic_ref() = PAGE_FIXED;
-		flags_ref() = 0;
 		field_size_ref() = sizeof(T);
 		size_ref() = 0;
 		next_page_ref() = prev_page_ref() = 0;
 	}
 
 	T* begin() { return end() - size(); }
-	T* end() { return reinterpret_cast<T*>(buf + PAGE_SIZE); }
+	T* end() { return (T*)(buf + PAGE_SIZE); }
 
 	bool insert(int pos, int child, const T& key);
 	void erase(int pos);
@@ -48,6 +44,22 @@ public:
 	void move_from(fixed_page page, int src_pos, int dest_pos);
 };
 
+/* Specialized class (for pointer) */
+template<> inline
+int fixed_page<char*>::capacity()
+{
+	return (PAGE_SIZE - header_size()) / (field_size() + 4);
+}
+
+template<> inline
+void fixed_page<char*>::set_key(int pos, char * const &data)
+{
+	std::memcpy(
+		buf + PAGE_SIZE - (size() + pos) * field_size(),
+		data, field_size());
+}
+
+/* General class */
 template<typename T>
 bool fixed_page<T>::insert(int pos, int child, const T& key)
 {
@@ -59,12 +71,14 @@ bool fixed_page<T>::insert(int pos, int child, const T& key)
 		ch_ptr[i + 1] = ch_ptr[i];
 	ch_ptr[pos] = child;
 
-	T* key_ptr = begin();
-	for(int i = 0; i < pos; ++i, ++key_ptr)
-		*(key_ptr - 1) = *key_ptr;
-	*(key_ptr - 1) = key;
+	std::memmove(
+		reinterpret_cast<char*>(end()) - (size() + 1) * field_size(),
+		reinterpret_cast<char*>(end()) - size() * field_size(),
+		pos * field_size()
+	);
 
 	++size_ref();
+	set_key(pos, key);
 	return true;
 }
 
@@ -78,10 +92,11 @@ void fixed_page<T>::erase(int pos)
 		*ch_ptr = *(ch_ptr + 1);
 	*ch_ptr = 0;
 
-	T* key_ptr = begin() + pos;
-	for(int i = 0; i < pos; ++i, --key_ptr)
-		*key_ptr = *(key_ptr - 1);
-	*key_ptr = 0;
+	std::memmove(
+		reinterpret_cast<char*>(end()) - (size() - 1) * field_size(),
+		reinterpret_cast<char*>(end()) - size() * field_size(),
+		pos * field_size()
+	);
 
 	--size_ref();
 }
@@ -96,7 +111,6 @@ std::pair<int, fixed_page<T>> fixed_page<T>::split(int cur_id)
 	if(!page_id) return { 0, { nullptr, nullptr } };
 	fixed_page upper_page { pg->read_for_write(page_id), pg };
 	upper_page.init();
-	upper_page.flags_ref() = flags();
 
 	if(next_page())
 	{
@@ -119,10 +133,10 @@ std::pair<int, fixed_page<T>> fixed_page<T>::split(int cur_id)
 	std::memcpy(
 		upper_page.end() - upper_size, 
 		end() - upper_size, 
-		sizeof(T) * upper_size
+		field_size() * upper_size
 	);
 
-	std::memmove(end() - lower_size, begin(), sizeof(T) * lower_size);
+	std::memmove(end() - lower_size, begin(), field_size() * lower_size);
 	size_ref() = lower_size;
 	upper_page.size_ref() = upper_size;
 	return { page_id, upper_page };
@@ -143,8 +157,8 @@ bool fixed_page<T>::merge(fixed_page page, int cur_id)
 	}
 
 	std::memcpy(children() + size(), page.children(), 4 * page.size());
-	std::memmove(begin() - page.size(), begin(), sizeof(T) * page.size());
-	std::memcpy(end() - page.size(), page.begin(), sizeof(T) * page.size());
+	std::memmove(begin() - page.size(), begin(), field_size() * page.size());
+	std::memcpy(end() - page.size(), page.begin(), field_size() * page.size());
 	size_ref() += page.size();
 
 	return true;

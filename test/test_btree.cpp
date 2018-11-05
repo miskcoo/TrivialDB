@@ -57,7 +57,7 @@ void dump_element(pager* pg, std::pair<int, int> elem)
 int main()
 {
 	pager pg("test.db");
-	btree bt(&pg);
+	int_btree bt(&pg);
 
 	auto insert = [&](int key) {
 		*(int*)data = key;

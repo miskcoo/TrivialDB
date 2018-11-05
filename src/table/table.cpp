@@ -15,7 +15,7 @@ bool table_manager::open(const char *table_name)
 	std::ifstream ifs(thead, std::ios::binary);
 	ifs.read((char*)&header, sizeof(header));
 	pg = std::make_shared<pager>(tdata.c_str());
-	btr = std::make_shared<btree>(
+	btr = std::make_shared<int_btree>(
 			pg.get(), header.index_root[header.main_index]);
 	allocate_temp_record();
 
@@ -29,7 +29,7 @@ bool table_manager::create(const char *table_name, table_header_t header)
 	std::string tdata = tname + ".tdata";
 
 	pg = std::make_shared<pager>(tdata.c_str());
-	btr = std::make_shared<btree>(pg.get(), 0);
+	btr = std::make_shared<int_btree>(pg.get(), 0);
 
 	this->header = header;
 	this->header.index_root[header.main_index] = btr->get_root_page_id();

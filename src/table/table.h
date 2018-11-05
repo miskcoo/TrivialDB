@@ -18,7 +18,7 @@ class table_manager
 {
 	bool is_open;
 	table_header_t header;
-	std::shared_ptr<btree> btr;
+	std::shared_ptr<int_btree> btr;
 	std::shared_ptr<pager> pg;
 	std::string tname;
 	const char *error_msg;
@@ -35,6 +35,10 @@ public:
 	void close();
 
 	int lookup_column(const char *col_name);
+	int get_column_offset(int col) { return header.col_offset[col]; }
+	int get_column_length(int col) { return header.col_length[col]; }
+	const char* get_column_name(int col) { return header.col_name[col]; }
+	uint8_t get_column_type(int col) { return header.col_type[col]; }
 
 	void init_temp_record();
 	int insert_record();
