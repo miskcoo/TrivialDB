@@ -115,7 +115,8 @@ void table_manager::init_temp_record()
 
 int table_manager::insert_record()
 {
-	int *rid = (int*)tmp_record + header.col_offset[header.main_index];
+	assert(header.col_offset[header.main_index] == 0);
+	int *rid = (int*)tmp_record;
 	if(header.is_main_index_additional)
 		*rid = header.auto_inc;
 	// TODO: validate record

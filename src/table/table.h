@@ -11,7 +11,7 @@
 #include "record.h"
 
 /*    Data page structure for rows
- *  | main index | notnull | fixed col 1 | ... | fixed col n |
+ *  | rid (main index) | notnull | fixed col 1 | ... | fixed col n |
  */
 
 class table_manager
