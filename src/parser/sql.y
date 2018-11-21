@@ -17,8 +17,8 @@ void yyerror(const char *s);
 	char *val_s;
 	int   val_i;
 	float val_f;
-	field_item_t *field_items;
-	table_def_t  *table_def;
+	struct field_item_t *field_items;
+	struct table_def_t  *table_def;
 }
 
 %token TRUE FALSE NULL_TOKEN MIN MAX SUM AVG COUNT

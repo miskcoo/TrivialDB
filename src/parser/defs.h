@@ -19,16 +19,16 @@ typedef enum {
 	FIELD_FLAG_NOTNULL = 1
 } field_flag_t;
 
-struct field_item_t {
+typedef struct field_item_t {
 	char *name;
 	int type, width, flags;
-	field_item_t *next;
-};
+	struct field_item_t *next;
+} field_item_t;
 
-struct table_def_t {
+typedef struct table_def_t {
 	char *name;
-	field_item_t *fields;
-};
+	struct field_item_t *fields;
+} table_def_t;
 
 #ifdef __cplusplus
 };
