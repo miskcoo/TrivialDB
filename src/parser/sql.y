@@ -23,6 +23,8 @@ void yyerror(const char *s);
 	struct column_ref_t       *column_ref;
 	struct linked_list_t      *list;
 	struct table_constraint_t *constraint;
+	struct insert_info_t      *insert_info;
+	struct expr_node_t        *expr;
 }
 
 %token TRUE FALSE NULL_TOKEN MIN MAX SUM AVG COUNT
@@ -44,13 +46,18 @@ void yyerror(const char *s);
 %type <val_i> INT_LITERAL
 
 %type <val_i> field_type field_width field_flag field_flags
-%type <val_s> table_name
+%type <val_s> table_name database_name
+%type <val_s> create_database_stmt use_database_stmt drop_database_stmt show_database_stmt 
+%type <val_s> drop_table_stmt show_table_stmt
 
 %type <field_items> table_field table_fields
 %type <table_def> create_table_stmt
 %type <column_ref> column_ref
 %type <constraint> table_extra_option
-%type <list> column_list table_extra_options table_extra_option_list
+%type <list> column_list expr_list insert_values
+%type <list> table_extra_options table_extra_option_list
+%type <insert_info> insert_stmt insert_columns
+%type <expr> expr factor term
 
 %start sql_stmts
 
@@ -60,8 +67,15 @@ sql_stmts  :  sql_stmt
 		   |  sql_stmts sql_stmt
 		   ;
 
-sql_stmt   :  create_table_stmt ';'  { execute_create_table($1); }
-		   |  EXIT ';'               { execute_quit(); }
+sql_stmt   :  create_table_stmt ';'    { execute_create_table($1); }
+		   |  create_database_stmt ';' { execute_create_database($1); }
+		   |  use_database_stmt ';'    { execute_use_database($1); }
+		   |  show_database_stmt ';'   { execute_show_database($1); }
+		   |  drop_database_stmt ';'   { execute_drop_database($1); }
+		   |  show_table_stmt ';'      { execute_show_table($1); }
+		   |  drop_table_stmt ';'      { execute_drop_table($1); }
+		   |  insert_stmt ';'          { execute_insert($1); }
+		   |  EXIT ';'                 { execute_quit(); exit(0); }
 		   ;
 
 create_table_stmt : CREATE TABLE table_name '(' table_fields table_extra_options ')' {
@@ -71,6 +85,44 @@ create_table_stmt : CREATE TABLE table_name '(' table_fields table_extra_options
 					$$->constraints = $6;
 				  }
 				  ;
+
+create_database_stmt : CREATE DATABASE database_name   { $$ = $3; };
+use_database_stmt    : USE DATABASE database_name      { $$ = $3; };
+drop_database_stmt   : DROP DATABASE database_name     { $$ = $3; };
+show_database_stmt   : SHOW DATABASE database_name     { $$ = $3; };
+drop_table_stmt      : DROP TABLE table_name           { $$ = $3; };
+show_table_stmt      : SHOW TABLE table_name           { $$ = $3; };
+insert_stmt          : INSERT INTO insert_columns VALUES insert_values {
+					 	$$ = $3;
+						$$->values = $5;
+					 }
+					 ;
+
+insert_values        : '(' expr_list ')' {
+					 	$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+						$$->data = $2;
+						$$->next = NULL;
+					 }
+					 | insert_values ',' '(' expr_list ')' {
+					 	$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+						$$->data = $4;
+						$$->next = $1;
+					 }
+					 ;
+
+insert_columns       : table_name {
+					 	$$ = (insert_info_t*)malloc(sizeof(insert_info_t));
+						$$->table   = $1;
+						$$->columns = NULL;
+						$$->values  = NULL;
+					 }
+					 | table_name '(' column_list ')' {
+					 	$$ = (insert_info_t*)malloc(sizeof(insert_info_t));
+						$$->table   = $1;
+						$$->columns = $3;
+						$$->values  = NULL;
+					 }
+					 ;
 
 table_extra_options : ',' table_extra_option_list  { $$ = $2; }
 					| /* empty */                  { $$ = NULL; }
@@ -108,12 +160,9 @@ column_ref   : IDENTIFIER {
 			 ;
 
 column_list  : column_list ',' column_ref {
-				linked_list_t *f;
-			 	$$ = $1;
-				for(f = $1; f->next; f = f->next);
-				f->next = (linked_list_t*)malloc(sizeof(linked_list_t));
-				f->next->data = $3;
-				f->next->next = NULL;
+				$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+				$$->data = $3;
+				$$->next = $1;
 			 }
 			 | column_ref {
 			 	$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
@@ -123,13 +172,8 @@ column_list  : column_list ',' column_ref {
 			 ;
 
 
-table_fields : table_field { $$ = $1; }
-			 | table_fields ',' table_field {
-				field_item_t *f;
-			 	$$ = $1;
-				for(f = $1; f->next; f = f->next);
-				f->next = $3;
-			 }
+table_fields : table_field                  { $$ = $1; }
+			 | table_fields ',' table_field { $$ = $3; $$->next = $1; }
 			 ;
 
 table_field  : IDENTIFIER field_type field_width field_flags {
@@ -160,9 +204,86 @@ field_type  : INTEGER { $$ = FIELD_TYPE_INT; }
 		    | VARCHAR { $$ = FIELD_TYPE_VARCHAR; }
 		    ;
 
+expr_list  : expr_list ',' expr {
+				$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+				$$->data = $3;
+				$$->next = $1;
+		   }
+		   | expr {
+				$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+				$$->data = $1;
+				$$->next = NULL;
+		   }
+		   ;
+
+expr       : expr '+' factor {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->right = $3;
+				$$->op    = OPERATOR_ADD;
+		   }
+		   | expr '-' factor {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->right = $3;
+				$$->op    = OPERATOR_MINUS;
+		   }
+		   | factor { $$ = $1; }
+		   ;
+
+factor     : factor '*' term {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->right = $3;
+				$$->op    = OPERATOR_MUL;
+		   }
+		   | factor '/' term {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->right = $3;
+				$$->op    = OPERATOR_DIV;
+		   }
+		   | term { $$ = $1; }
+		   ;
+
+term       : column_ref {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->column_ref = $1;
+				$$->term_type  = TERM_COLUMN_REF;
+		   }
+		   | INT_LITERAL {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->val_i      = $1;
+				$$->term_type  = TERM_INT;
+		   }
+		   | FLOAT_LITERAL {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->val_f      = $1;
+				$$->term_type  = TERM_FLOAT;
+		   }
+		   | STRING_LITERAL {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->val_s      = $1;
+				$$->term_type  = TERM_STRING;
+		   }
+		   | NULL_TOKEN {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->term_type  = TERM_NULL;
+		   }
+		   | '-' term {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $2;
+				$$->op    = OPERATOR_NEGATE;
+		   }
+		   | '(' expr ')' { $$ = $2; }
+		   ;
+
 table_name : IDENTIFIER          { $$ = $1; }
 		   | '`' IDENTIFIER '`'  { $$ = $2; }
 		   ;
+
+database_name : IDENTIFIER       { $$ = $1; }
+			  ;
 
 %%
 
@@ -187,6 +308,8 @@ char run_parser(const char *input)
 	} else {
 		ret = yyparse();
 	}
+
+	execute_quit();
 
 	return ret;
 }

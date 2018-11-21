@@ -25,6 +25,24 @@ typedef enum {
 	TABLE_CONSTRAINT_CHECK
 } table_constraint_type_t;
 
+typedef enum {
+	OPERATOR_NONE = 0,
+	OPERATOR_ADD,
+	OPERATOR_MINUS,
+	OPERATOR_DIV,
+	OPERATOR_MUL,
+	OPERATOR_NEGATE
+} operator_type_t;
+
+typedef enum {
+	TERM_NONE = 0,
+	TERM_COLUMN_REF,
+	TERM_INT,
+	TERM_STRING,
+	TERM_FLOAT,
+	TERM_NULL
+} term_type_t;
+
 typedef struct field_item_t {
 	char *name;
 	int type, width, flags;
@@ -51,6 +69,24 @@ typedef struct table_def_t {
 	struct field_item_t *fields;
 	struct linked_list_t *constraints;
 } table_def_t;
+
+typedef struct insert_info_t {
+	char *table;
+	linked_list_t *columns, *values;
+} insert_info_t;
+
+typedef struct expr_node_t {
+	union {
+		int    val_i;
+		float  val_f;
+		char  *val_s;
+		struct column_ref_t *column_ref;
+		struct expr_node_t  *left;
+	};
+	struct expr_node_t *right;
+	operator_type_t op;
+	term_type_t term_type;
+} expr_node_t;
 
 #ifdef __cplusplus
 };

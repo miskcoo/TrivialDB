@@ -4,8 +4,6 @@ find_package(BISON REQUIRED)
 BISON_TARGET(sql_yy
 	${CMAKE_CURRENT_SOURCE_DIR}/sql.y
 	${CMAKE_CURRENT_BINARY_DIR}/sql.tab.c
-	VERBOSE
-	${CMAKE_CURRENT_BINARY_DIR}/sql.output
 )
 
 FLEX_TARGET(sql_lex
