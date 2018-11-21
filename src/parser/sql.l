@@ -34,6 +34,7 @@ primary|PRIMARY         { return PRIMARY; }
 foreign|FOREIGN         { return FOREIGN; }
 references|REFERENCES   { return REFERENCES; }
 check|CHECK             { return CHECK; }
+key|KEY                 { return KEY; }
 
 into|INTO          { return INTO; }
 from|FROM          { return FROM; }
