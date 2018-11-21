@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "defs.h"
+#include "execute.h"
 
 void yyerror(const char *s);
 
@@ -31,7 +32,7 @@ void yyerror(const char *s);
 %token LEFT RIGHT FULL ASC DESC ORDER BY IN ON AS
 %token DISTINCT GROUP USING INDEX TABLE DATABASE
 %token DEFAULT UNIQUE PRIMARY FOREIGN REFERENCES CHECK KEY
-%token USE CREATE DROP SELECT INSERT UPDATE DELETE SHOW SET
+%token USE CREATE DROP SELECT INSERT UPDATE DELETE SHOW SET EXIT
 
 %token IDENTIFIER
 %token STRING_LITERAL
@@ -59,7 +60,8 @@ sql_stmts  :  sql_stmt
 		   |  sql_stmts sql_stmt
 		   ;
 
-sql_stmt   :  create_table_stmt
+sql_stmt   :  create_table_stmt ';'  { execute_create_table($1); }
+		   |  EXIT ';'               { execute_quit(); }
 		   ;
 
 create_table_stmt : CREATE TABLE table_name '(' table_fields table_extra_options ')' {
@@ -164,3 +166,27 @@ table_name : IDENTIFIER          { $$ = $1; }
 
 %%
 
+void yyerror(const char *msg)
+{
+	fprintf(stderr, "[Error] %s\n", msg);
+}
+
+int yywrap()
+{
+	return 1;
+}
+
+char run_parser(const char *input)
+{
+	char ret;
+	if(input) {
+		YY_BUFFER_STATE buf = yy_scan_string(input);
+		yy_switch_to_buffer(buf);
+		ret = yyparse();
+		yy_delete_buffer(buf);
+	} else {
+		ret = yyparse();
+	}
+
+	return ret;
+}

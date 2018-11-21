@@ -83,6 +83,8 @@ float|FLOAT               { return FLOAT; }
 char|CHAR                 { return CHAR; }
 varchar|VARCHAR           { return VARCHAR; }
 
+exit|EXIT                 { return EXIT; }
+
 {ID_TEMPLATE}             { yylval.val_s = strdup(yytext); return IDENTIFIER; }
 {INT_TEMPLATE}            { yylval.val_i = atoi(yytext);   return INT_LITERAL; }
 {FLOAT_TEMPLATE}          { yylval.val_f = atof(yytext);   return FLOAT_LITERAL; }
