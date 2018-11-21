@@ -6,6 +6,9 @@
 #define PAGE_CACHE_CAPACITY 1024
 #define MAX_FILE_ID 1024
 
+/* database info */
+#define MAX_TABLE_NUM   32
+
 /* page info */
 #define PAGE_FREEBLOCK  0x45455246
 #define PAGE_BLOCK_MIN_NUM   4

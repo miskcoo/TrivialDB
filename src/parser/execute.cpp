@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "execute.h"
+#include "../database/database.h"
 
 void execute_create_table(const table_def_t *table)
 {
@@ -14,7 +15,10 @@ void execute_create_table(const table_def_t *table)
 
 void execute_create_database(const char *db_name)
 {
-	printf("[create] database name = %s\n", db_name);
+	database db;
+	db.create(db_name);
+	db.close();
+	free((char*)db_name);
 }
 
 void execute_use_database(const char *db_name)

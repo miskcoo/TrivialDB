@@ -13,6 +13,7 @@ set(SOURCE
 	src/page/variant_page.cpp
 	src/table/record.cpp
 	src/table/table.cpp
+	src/database/database.cpp
 )
 
 set(HEADERS
