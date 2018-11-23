@@ -29,3 +29,16 @@ void database::close()
 	ofs.write((char*)&info, sizeof(info));
 	opened = false;
 }
+
+void database::create_table(const table_header_t *header)
+{
+	if(!is_opened())
+	{
+		// TODO: report error
+	} else {
+		table_manager tb;
+		std::strncpy(info.table_name[info.table_num++], header->table_name, MAX_NAME_LEN);
+		tb.create(header->table_name, header);
+		tb.close();
+	}
+}

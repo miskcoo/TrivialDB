@@ -1,34 +1,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "execute.h"
-#include "../database/database.h"
+#include "../database/dbms.h"
+#include "../table/table_header.h"
 
+void fill_table_header(table_header_t *header, const table_def_t *table);
 void execute_create_table(const table_def_t *table)
 {
-	printf("[create] table name = %s\n", table->name);
-	for(field_item_t *field = table->fields; field; field = field->next)
-	{
-		printf("  [field] name = %s, type = %d, width = %d, flags = %d\n",
-				field->name, field->type, field->width, field->flags);
-	}
+	table_header_t *header = new table_header_t;
+	fill_table_header(header, table);
+	dbms::get_instance()->create_table(header);
+	delete header;
+	// TODO: free memory of table
 }
 
 void execute_create_database(const char *db_name)
 {
-	database db;
-	db.create(db_name);
-	db.close();
+	dbms::get_instance()->create_database(db_name);
 	free((char*)db_name);
 }
 
 void execute_use_database(const char *db_name)
 {
-	printf("[use] database name = %s\n", db_name);
+	dbms::get_instance()->switch_database(db_name);
+	free((char*)db_name);
 }
 
 void execute_drop_database(const char *db_name)
 {
-	printf("[drop] database name = %s\n", db_name);
+	dbms::get_instance()->drop_database(db_name);
+	free((char*)db_name);
 }
 
 void execute_show_database(const char *db_name)

@@ -30,7 +30,7 @@ class table_manager
 public:
 	table_manager() : is_open(false), tmp_record(nullptr) {}
 	~table_manager() { if(is_open) close(); }
-	bool create(const char *table_name, table_header_t header);
+	bool create(const char *table_name, const table_header_t *header);
 	bool open(const char *table_name);
 	void close();
 

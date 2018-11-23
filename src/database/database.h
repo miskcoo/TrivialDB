@@ -10,7 +10,7 @@ class database
 {
 	struct database_info
 	{
-		int table_size;
+		int table_num;
 		char db_name[MAX_NAME_LEN];
 		char table_name[MAX_TABLE_NUM][MAX_NAME_LEN];
 	} info;
@@ -23,6 +23,8 @@ public:
 	void open(const char *db_name);
 	void create(const char *db_name);
 	void close();
+
+	void create_table(const table_header_t *header);
 };
 
 #endif

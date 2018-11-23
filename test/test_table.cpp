@@ -21,7 +21,7 @@ int main()
 	header.col_type[1] = COL_TYPE_INT;
 
 	table_manager tb;
-	tb.create("hello", header);
+	tb.create("hello", &header);
 
 
 	auto insert = [&](int x) {

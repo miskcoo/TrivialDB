@@ -22,7 +22,7 @@ bool table_manager::open(const char *table_name)
 	return is_open = true;
 }
 
-bool table_manager::create(const char *table_name, table_header_t header)
+bool table_manager::create(const char *table_name, const table_header_t *header)
 {
 	if(is_open) return false;
 	tname = table_name;
@@ -31,8 +31,8 @@ bool table_manager::create(const char *table_name, table_header_t header)
 	pg = std::make_shared<pager>(tdata.c_str());
 	btr = std::make_shared<int_btree>(pg.get(), 0);
 
-	this->header = header;
-	this->header.index_root[header.main_index] = btr->get_root_page_id();
+	this->header = *header;
+	this->header.index_root[header->main_index] = btr->get_root_page_id();
 	allocate_temp_record();
 
 	return is_open = true;
