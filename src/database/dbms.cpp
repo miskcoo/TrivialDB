@@ -105,7 +105,11 @@ void dbms::insert_rows(const insert_info_t *info)
 			}
 
 			auto col_type = tb->get_column_type(*it);
-			// TODO: check column type
+			if(!typecast::type_compatible(col_type, v))
+			{
+				std::fprintf(stderr, "[Error] incompatible type.\n");
+				return;
+			}
 			
 			term_type_t desired_type = typecast::column_to_term(col_type);
 			char *db_val = typecast::expr_to_db(v, desired_type);

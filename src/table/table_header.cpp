@@ -47,5 +47,5 @@ void fill_table_header(table_header_t *header, const table_def_t *table)
 	header->is_main_index_additional = 1;
 	header->flag_indexed |= 1 << index;
 	header->flag_primary |= 1 << index;
-
+	header->auto_inc = 1;
 }

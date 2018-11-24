@@ -57,6 +57,23 @@ namespace typecast
 
 		return ret;
 	}
+
+	inline bool type_compatible(int col_type, const expression &val)
+	{
+		switch(val.type)
+		{
+			case TERM_NULL:
+				return true;
+			case TERM_INT:
+				return col_type == COL_TYPE_INT || col_type == COL_TYPE_FLOAT;
+			case TERM_FLOAT:
+				return col_type == COL_TYPE_FLOAT;
+			case TERM_STRING:
+				return col_type == COL_TYPE_VARCHAR;
+			default:
+				return false;
+		}
+	}
 }
 
 #endif

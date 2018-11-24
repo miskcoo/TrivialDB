@@ -9,6 +9,6 @@ CREATE TABLE Persons (
 );
 INSERT INTO Persons VALUES 
 	(23, 'Yi', 'Wang', 'Tsinghua Univ.', 'Beijing'),
-	(238, 'Zhong', 'Lei', 'Beijing Univ.', 'Neijing'),
-	(999, 'Wasserstein', 'Zhang', 'Hunan Univ.', 'Hunan');
+	(-238, 'Zhong', 'Lei', 'Beijing Univ.', 'Neijing'),
+	(1+999, 'Wasserstein', 'Zhang', 'Hunan Univ.', 'Hunan');
 EXIT;

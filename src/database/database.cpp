@@ -62,7 +62,9 @@ void database::create_table(const table_header_t *header)
 {
 	if(!is_opened())
 	{
-		// TODO: report error
+		std::fprintf(stderr, "[Error] database not opened.\n");
+	} else if(!get_table(header->table_name)) {
+		std::fprintf(stderr, "[Error] table `%s` already exists.\n", header->table_name);
 	} else {
 		int id = info.table_num++;
 		std::strncpy(info.table_name[id], header->table_name, MAX_NAME_LEN);
