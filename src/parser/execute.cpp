@@ -49,6 +49,8 @@ void execute_show_table(const char *table_name)
 
 void execute_insert(const insert_info_t *insert_info)
 {
+	dbms::get_instance()->insert_rows(insert_info);
+	// TODO: free memory
 	printf("[insert] table = %s\n", insert_info->table);
 	for(linked_list_t *l = insert_info->values; l; l = l->next)
 	{
@@ -80,6 +82,7 @@ void traverse_expr(const expr_node_t *expr_node)
 
 void execute_quit()
 {
+	dbms::get_instance()->close_database();
 	printf("[exit] good bye!\n");
 }
 

@@ -16,6 +16,7 @@ set(SOURCE
 	src/table/table_header.cpp
 	src/database/database.cpp
 	src/database/dbms.cpp
+	src/expression/expression.cpp
 )
 
 set(HEADERS

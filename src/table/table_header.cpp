@@ -37,7 +37,7 @@ void fill_table_header(table_header_t *header, const table_def_t *table)
 		// TODO: load constraint infos
 	}
 
-	/* add '__rowid__' column */
+	/* add '__rowid__' column (with highest index) */
 	int index = header->col_num++;
 	std::strcpy(header->col_name[index], "__rowid__");
 	header->col_type[index]   = COL_TYPE_INT;

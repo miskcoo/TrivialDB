@@ -39,6 +39,7 @@ public:
 	int get_column_length(int col) { return header.col_length[col]; }
 	const char* get_column_name(int col) { return header.col_name[col]; }
 	uint8_t get_column_type(int col) { return header.col_type[col]; }
+	int get_column_num() { return header.col_num; }
 
 	void init_temp_record();
 	int insert_record();

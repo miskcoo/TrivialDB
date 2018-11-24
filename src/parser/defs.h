@@ -25,13 +25,14 @@ typedef enum {
 	TABLE_CONSTRAINT_CHECK
 } table_constraint_type_t;
 
+#define OPERATOR_UNARY 0x80
 typedef enum {
 	OPERATOR_NONE = 0,
 	OPERATOR_ADD,
 	OPERATOR_MINUS,
 	OPERATOR_DIV,
 	OPERATOR_MUL,
-	OPERATOR_NEGATE
+	OPERATOR_NEGATE = OPERATOR_UNARY
 } operator_type_t;
 
 typedef enum {

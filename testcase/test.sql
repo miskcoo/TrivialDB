@@ -7,4 +7,8 @@ CREATE TABLE Persons (
     Address varchar(255),
     City varchar(255)
 );
+INSERT INTO Persons VALUES 
+	(23, 'Yi', 'Wang', 'Tsinghua Univ.', 'Beijing'),
+	(238, 'Zhong', 'Lei', 'Beijing Univ.', 'Neijing'),
+	(999, 'Wasserstein', 'Zhang', 'Hunan Univ.', 'Hunan');
 EXIT;
