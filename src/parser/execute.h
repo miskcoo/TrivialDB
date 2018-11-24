@@ -15,6 +15,8 @@ void execute_create_table(const table_def_t *table);
 void execute_drop_table(const char *table_name);
 void execute_show_table(const char *table_name);
 void execute_insert(const insert_info_t *insert_info);
+void execute_create_index(const char *table_name, const char *col_name);
+void execute_drop_index(const char *table_name, const char *col_name);
 void execute_quit();
 void traverse_expr(const expr_node_t *expr_node);
 

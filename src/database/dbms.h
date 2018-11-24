@@ -20,6 +20,10 @@ public:
 	void create_database(const char *db_name);
 
 	void create_table(const table_header_t *header);
+
+	void create_index(const char *tb_name, const char *col_name);
+	void drop_index(const char *tb_name, const char *col_name);
+
 	void insert_rows(const insert_info_t *info);
 
 public:

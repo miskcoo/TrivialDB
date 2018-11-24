@@ -346,6 +346,6 @@ bool btree<KeyType, Comparer, Copier>::erase(key_t key)
 /* Explicitly instantiate templates */
 template class btree<int, int(*)(int, int), int(*)(int)>;
 template class btree<const char*,
-		 int(*)(const char*, const char*),
+		 index_btree::comparer_t,
 		 __impl::index_btree_copier_t
 	 >;

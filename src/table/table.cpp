@@ -1,9 +1,56 @@
 #include "table.h"
+#include "../index/index.h"
 #include <cstdio>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <string>
+
+index_manager::comparer_t get_index_comparer(int type)
+{
+	switch(type)
+	{
+		case COL_TYPE_INT:
+			return integer_bin_comparer;
+		case COL_TYPE_FLOAT:
+			return float_bin_comparer;
+		case COL_TYPE_VARCHAR:
+			return string_comparer;
+		default:
+			assert(0);
+			return string_comparer;
+	}
+}
+
+void table_manager::load_indices()
+{
+	std::memset(indices, 0, sizeof(indices));
+	for(int i = 0; i < header.col_num; ++i)
+	{
+		if(i != header.main_index && ((1u << i) & header.flag_indexed))
+		{
+			indices[i] = new index_manager(pg.get(),
+				header.col_length[i],
+				header.index_root[i],
+				get_index_comparer(header.col_type[i])
+			);
+		}
+	}
+}
+
+void table_manager::free_indices()
+{
+	for(int i = 0; i < header.col_num; ++i)
+	{
+		if(i != header.main_index && ((1u << i) & header.flag_indexed))
+		{
+			assert(indices[i]);
+			header.index_root[i] = indices[i]->get_root_pid();
+			delete indices[i];
+			indices[i] = nullptr;
+		}
+	}
+}
 
 bool table_manager::open(const char *table_name)
 {
@@ -18,6 +65,7 @@ bool table_manager::open(const char *table_name)
 	btr = std::make_shared<int_btree>(
 			pg.get(), header.index_root[header.main_index]);
 	allocate_temp_record();
+	load_indices();
 
 	return is_open = true;
 }
@@ -34,6 +82,7 @@ bool table_manager::create(const char *table_name, const table_header_t *header)
 	this->header = *header;
 	this->header.index_root[header->main_index] = btr->get_root_page_id();
 	allocate_temp_record();
+	load_indices();
 
 	return is_open = true;
 }
@@ -45,6 +94,8 @@ void table_manager::close()
 	std::string tdata = tname + ".tdata";
 
 	header.index_root[header.main_index] = btr->get_root_page_id();
+	free_indices();
+
 	std::ofstream ofs(thead, std::ios::binary);
 	ofs.write((char*)&header, sizeof(header));
 	btr = nullptr;
@@ -92,13 +143,7 @@ bool table_manager::set_temp_record(int col, const void *data)
 			memcpy(tmp_record + header.col_offset[col], data, 4);
 			break;
 		case COL_TYPE_VARCHAR:
-			if((int)strlen((const char*)data) > header.col_length[col])
-			{
-				error_msg = "[ERROR] string too long.";
-				return false;
-			}
-
-			strcpy(tmp_record + header.col_offset[col], (const char*)data);
+			strncpy(tmp_record + header.col_offset[col], (const char*)data, header.col_length[col]);
 			break;
 		default:
 			assert(false);
@@ -121,7 +166,16 @@ int table_manager::insert_record()
 		*rid = header.auto_inc;
 	// TODO: validate record
 	btr->insert(*rid, tmp_record, tmp_record_size);
-	// TODO: update corresponding index
+
+	for(int i = 0; i < header.col_num; ++i)
+	{
+		if(i != header.main_index && ((1u << i) & header.flag_indexed))
+		{
+			assert(indices[i]);
+			indices[i]->insert(tmp_record + header.col_offset[i], *rid);
+		}
+	}
+
 	if(header.is_main_index_additional)
 	{
 		++header.records_num;
@@ -191,4 +245,24 @@ bool table_manager::modify_record(int rid, int col, const void* data)
 	rec.write(data, header.col_length[col]);
 	// TODO: update index
 	return true;
+}
+
+void table_manager::create_index(const char *col_name)
+{
+	int cid = lookup_column(col_name);
+	if(cid < 0)
+	{
+		std::fprintf(stderr, "[Error] column `%s' not exists.\n", col_name);
+	} else if(header.flag_indexed & (1u << cid)) {
+		std::fprintf(stderr, "[Error] index for column `%s' already exists.\n", col_name);
+	} else {
+		header.flag_indexed |= 1u << cid;
+		indices[cid] = new index_manager(pg.get(),
+			header.col_length[cid],
+			header.index_root[cid],
+			get_index_comparer(header.col_type[cid])
+		);
+
+		// TODO: add existed data.
+	}
 }

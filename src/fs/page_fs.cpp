@@ -62,7 +62,7 @@ void page_fs::writeback(int file_id)
 		file_page_t info = index2page[i];
 		if(info.first == file_id && dirty[i])
 		{
-			debug_printf("Writeback: fid = %d, pid = %d\n", file_id, info.second);
+			// debug_printf("Writeback: fid = %d, pid = %d\n", file_id, info.second);
 			std::fseek(file, (long)PAGE_SIZE * info.second, SEEK_SET);
 			std::fwrite(buffer + i * PAGE_SIZE, PAGE_SIZE, 1, file);
 			page2index.erase(page2index.find(info));

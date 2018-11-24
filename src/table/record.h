@@ -18,6 +18,7 @@ public:
 	record_manager& write(const void* data, int size);
 	record_manager& read(void* buf, int size);
 	record_manager& forward(int size);
+	// goto next page
 	bool forward_page();
 	std::pair<char*, int> ptr_for_write();
 	std::pair<const char*, int> ptr() { return { cur_buf, remain }; }

@@ -128,6 +128,23 @@ void dbms::insert_rows(const insert_info_t *info)
 	std::printf("[Info] %d row(s) inserted, %d row(s) failed.\n", count_succ, count_fail);
 }
 
+void dbms::drop_index(const char *tb_name, const char *col_name)
+{
+}
+
+void dbms::create_index(const char *tb_name, const char *col_name)
+{
+	if(!assert_db_open())
+		return;
+	table_manager *tb = cur_db->get_table(tb_name);
+	if(tb == nullptr)
+	{
+		std::fprintf(stderr, "[Error] table `%s` not exists.\n", tb_name);
+	} else {
+		tb->create_index(col_name);
+	}
+}
+
 bool dbms::assert_db_open()
 {
 	if(cur_db && cur_db->is_opened())

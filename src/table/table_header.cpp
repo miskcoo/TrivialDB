@@ -25,7 +25,7 @@ void fill_table_header(table_header_t *header, const table_def_t *table)
 			case FIELD_TYPE_CHAR:
 			case FIELD_TYPE_VARCHAR:
 				header->col_type[index]   = COL_TYPE_VARCHAR;
-				header->col_length[index] = field->width;
+				header->col_length[index] = field->width + 1;
 				break;
 			default:
 				// TODO: report not supported type.

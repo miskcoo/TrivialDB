@@ -76,6 +76,8 @@ sql_stmt   :  create_table_stmt ';'    { execute_create_table($1); }
 		   |  drop_table_stmt ';'      { execute_drop_table($1); }
 		   |  insert_stmt ';'          { execute_insert($1); }
 		   |  EXIT ';'                 { execute_quit(); exit(0); }
+		   |  CREATE INDEX table_name '(' IDENTIFIER ')' ';' { execute_create_index($3, $5); }
+		   |  DROP   INDEX table_name '(' IDENTIFIER ')' ';' { execute_drop_index($3, $5); }
 		   ;
 
 create_table_stmt : CREATE TABLE table_name '(' table_fields table_extra_options ')' {
@@ -87,7 +89,7 @@ create_table_stmt : CREATE TABLE table_name '(' table_fields table_extra_options
 				  ;
 
 create_database_stmt : CREATE DATABASE database_name   { $$ = $3; };
-use_database_stmt    : USE DATABASE database_name      { $$ = $3; };
+use_database_stmt    : USE database_name               { $$ = $2; };
 drop_database_stmt   : DROP DATABASE database_name     { $$ = $3; };
 show_database_stmt   : SHOW DATABASE database_name     { $$ = $3; };
 drop_table_stmt      : DROP TABLE table_name           { $$ = $3; };

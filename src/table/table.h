@@ -7,6 +7,7 @@
 
 #include "../defs.h"
 #include "../btree/btree.h"
+#include "../index/index.h"
 #include "table_header.h"
 #include "record.h"
 
@@ -21,14 +22,17 @@ class table_manager
 	std::shared_ptr<int_btree> btr;
 	std::shared_ptr<pager> pg;
 	std::string tname;
+	index_manager *indices[MAX_COL_NUM];
 	const char *error_msg;
 
 	int tmp_record_size;
 	char *tmp_record;
 	int *tmp_null_mark;
 	void allocate_temp_record();
+	void load_indices();
+	void free_indices();
 public:
-	table_manager() : is_open(false), tmp_record(nullptr) {}
+	table_manager() : is_open(false), tmp_record(nullptr) { }
 	~table_manager() { if(is_open) close(); }
 	bool create(const char *table_name, const table_header_t *header);
 	bool open(const char *table_name);
@@ -46,6 +50,8 @@ public:
 	bool remove_record(int rid);
 	bool modify_record(int rid, int col, const void* data);
 	bool set_temp_record(int col, const void* data);
+
+	void create_index(const char *col_name);
 
 	// get the record R such that R.rid = min_{r.rid >= rid} r.rid
 	record_manager get_record_ptr_lower_bound(int rid, bool dirty=false);

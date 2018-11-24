@@ -51,17 +51,20 @@ void execute_insert(const insert_info_t *insert_info)
 {
 	dbms::get_instance()->insert_rows(insert_info);
 	// TODO: free memory
-	printf("[insert] table = %s\n", insert_info->table);
-	for(linked_list_t *l = insert_info->values; l; l = l->next)
-	{
-		printf("  [item]\n");
-		for(void *p = l->data; p; p = ((linked_list_t*)p)->next)
-		{
-			printf("    [expr] ");
-			traverse_expr((const expr_node_t*)((linked_list_t*)p)->data);
-			printf("\n");
-		}
-	}
+}
+
+void execute_create_index(const char *table_name, const char *col_name)
+{
+	dbms::get_instance()->create_index(table_name, col_name);
+	free((char*)table_name);
+	free((char*)col_name);
+}
+
+void execute_drop_index(const char *table_name, const char *col_name)
+{
+	dbms::get_instance()->drop_index(table_name, col_name);
+	free((char*)table_name);
+	free((char*)col_name);
 }
 
 void traverse_expr(const expr_node_t *expr_node)

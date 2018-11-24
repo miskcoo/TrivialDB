@@ -6,6 +6,7 @@
 #include "../page/fixed_page.h"
 #include "../page/data_page.h"
 #include "../page/index_leaf_page.h"
+#include <functional>
 #include <memory>
 #include <type_traits>
 
@@ -101,7 +102,7 @@ namespace __impl
 	public:
 		index_btree_copier_t(int size)
 			: size(size),
-			  buf(new char(size), array_deleter<char>()) {}
+			  buf(new char[size], array_deleter<char>()) {}
 
 		char *operator () (const char *src)
 		{
@@ -112,15 +113,17 @@ namespace __impl
 }
 
 class index_btree : public btree<const char*,
-	int(*)(const char*, const char*), __impl::index_btree_copier_t>
+	std::function<int(const char*, const char*)>,
+	__impl::index_btree_copier_t>
 {
-	typedef btree<const char*, int(*)(const char*, const char*),
+	typedef std::function<int(const char*, const char*)> comparer_t;
+	typedef btree<const char*, comparer_t,
 		__impl::index_btree_copier_t> base_class;
 public:
 	index_btree(pager *pg,
 			int root_page_id,
 			int size,
-			int(*comparer)(const char*, const char*)
+			comparer_t comparer
 		) : btree(
 			pg,
 			root_page_id,
