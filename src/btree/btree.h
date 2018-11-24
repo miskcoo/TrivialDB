@@ -1,7 +1,7 @@
 #ifndef __TRIVIALDB_BTREE__
 #define __TRIVIALDB_BTREE__
 
-#include "../utils/utils.h"
+#include "../utils/comparer.h"
 #include "../page/pager.h"
 #include "../page/fixed_page.h"
 #include "../page/data_page.h"

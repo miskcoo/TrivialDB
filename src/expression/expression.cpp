@@ -1,5 +1,8 @@
 #include <cassert>
 #include "expression.h"
+#include "../utils/comparer.h"
+
+#define THROW_UNSUPPORTED_OPERATOR throw "[Error] unsupported operator.";
 
 inline expression eval_terminal(const expr_node_t *expr)
 {
@@ -15,6 +18,9 @@ inline expression eval_terminal(const expr_node_t *expr)
 			break;
 		case TERM_STRING:
 			ret.val_s = expr->val_s;
+			break;
+		case TERM_BOOL:
+			ret.val_b = expr->val_b;
 			break;
 		case TERM_NULL:
 			break;
@@ -34,29 +40,58 @@ inline expression eval_float_operands(operator_type_t op, float a, float b)
 	expression ret;
 	switch(op)
 	{
+		/* arithmetic */
 		case OPERATOR_ADD:
 			ret.val_f = a + b;
-			ret.type  = TERM_INT;
+			ret.type  = TERM_FLOAT;
 			break;
 		case OPERATOR_MINUS:
 			ret.val_f = a - b;
-			ret.type  = TERM_INT;
+			ret.type  = TERM_FLOAT;
 			break;
 		case OPERATOR_DIV:
 			ret.val_f = a / b;
-			ret.type  = TERM_INT;
+			ret.type  = TERM_FLOAT;
 			break;
 		case OPERATOR_MUL:
 			ret.val_f = a * b;
-			ret.type  = TERM_INT;
+			ret.type  = TERM_FLOAT;
 			break;
 		case OPERATOR_NEGATE:
 			ret.val_f = -a;
-			ret.type  = TERM_INT;
+			ret.type  = TERM_FLOAT;
+			break;
+		/* compare */
+		case OPERATOR_EQ:
+			ret.val_b = a == b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_GEQ:
+			ret.val_b = a >= b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_LEQ:
+			ret.val_b = a <= b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_NEQ:
+			ret.val_b = a != b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_GT:
+			ret.val_b = a > b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_LT:
+			ret.val_b = a < b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_ISNULL:
+			ret.val_b = false;
+			ret.type  = TERM_BOOL;
 			break;
 		default:
-			assert(0);
-			// TODO: report error
+			THROW_UNSUPPORTED_OPERATOR;
 			break;
 	}
 
@@ -68,6 +103,7 @@ inline expression eval_int_operands(operator_type_t op, int a, int b)
 	expression ret;
 	switch(op)
 	{
+		/* arithmetic */
 		case OPERATOR_ADD:
 			ret.val_i = a + b;
 			ret.type  = TERM_INT;
@@ -88,9 +124,119 @@ inline expression eval_int_operands(operator_type_t op, int a, int b)
 			ret.val_i = -a;
 			ret.type  = TERM_INT;
 			break;
+		/* compare */
+		case OPERATOR_EQ:
+			ret.val_b = a == b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_GEQ:
+			ret.val_b = a >= b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_LEQ:
+			ret.val_b = a <= b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_NEQ:
+			ret.val_b = a != b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_GT:
+			ret.val_b = a > b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_LT:
+			ret.val_b = a < b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_ISNULL:
+			ret.val_b = false;
+			ret.type  = TERM_BOOL;
+			break;
 		default:
-			assert(0);
-			// TODO: report error
+			THROW_UNSUPPORTED_OPERATOR;
+			break;
+	}
+
+	return ret;
+}
+
+inline expression eval_bool_operands(operator_type_t op, bool a, bool b)
+{
+	expression ret;
+	switch(op)
+	{
+		/* logical */
+		case OPERATOR_AND:
+			ret.val_b = a & b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_OR:
+			ret.val_b = a | b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_EQ:
+			ret.val_b = a == b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_NEQ:
+			ret.val_b = a != b;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_ISNULL:
+			ret.val_b = false;
+			ret.type  = TERM_BOOL;
+			break;
+		default:
+			THROW_UNSUPPORTED_OPERATOR;
+			break;
+	}
+
+	return ret;
+}
+
+inline expression eval_string_operands(operator_type_t op, const char* a, const char* b)
+{
+	expression ret;
+	switch(op)
+	{
+		/* compare */
+		case OPERATOR_EQ:
+			ret.val_b = strcasecmp(a, b) == 0;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_NEQ:
+			ret.val_b = strcasecmp(a, b) != 0;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_LIKE:
+			ret.val_b = strlike(a, b);
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_ISNULL:
+			ret.val_b = false;
+			ret.type  = TERM_BOOL;
+			break;
+		default:
+			THROW_UNSUPPORTED_OPERATOR;
+			break;
+	}
+
+	return ret;
+}
+
+inline expression eval_null_operands(operator_type_t op)
+{
+	expression ret;
+	switch(op)
+	{
+		/* compare */
+		case OPERATOR_ISNULL:
+			ret.val_b = true;
+			ret.type  = TERM_BOOL;
+			break;
+		default:
+			ret.type  = TERM_NULL;
 			break;
 	}
 
@@ -129,9 +275,14 @@ expression expression::eval(const expr_node_t *expr)
 			return eval_int_operands(expr->op, left.val_i, right.val_i);
 		case TERM_FLOAT:
 			return eval_float_operands(expr->op, left.val_f, right.val_f);
+		case TERM_BOOL:
+			return eval_bool_operands(expr->op, left.val_b, right.val_b);
+		case TERM_STRING:
+			return eval_string_operands(expr->op, left.val_s, right.val_s);
+		case TERM_NULL:
+			return eval_null_operands(expr->op);
 		default:
-			// TODO: implement STRING, BOOL, NULL
-			assert(0);
+			throw "[Error] unknown type.";
 			return expression();
 	}
 }

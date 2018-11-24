@@ -53,6 +53,16 @@ void execute_insert(const insert_info_t *insert_info)
 	// TODO: free memory
 }
 
+void execute_delete(const delete_info_t *delete_info)
+{
+	dbms::get_instance()->delete_rows(delete_info);
+}
+
+void execute_update(const update_info_t *update_info)
+{
+	dbms::get_instance()->update_rows(update_info);
+}
+
 void execute_create_index(const char *table_name, const char *col_name)
 {
 	dbms::get_instance()->create_index(table_name, col_name);

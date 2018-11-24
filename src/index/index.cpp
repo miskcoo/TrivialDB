@@ -1,5 +1,5 @@
 #include "index.h"
-#include "../utils/utils.h"
+#include "../utils/comparer.h"
 #include <cstring>
 
 index_manager::index_manager(pager *pg, int size, int root_pid, comparer_t comparer)

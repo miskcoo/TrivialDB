@@ -28,11 +28,26 @@ typedef enum {
 #define OPERATOR_UNARY 0x80
 typedef enum {
 	OPERATOR_NONE = 0,
+	/* arithematic */
 	OPERATOR_ADD,
 	OPERATOR_MINUS,
 	OPERATOR_DIV,
 	OPERATOR_MUL,
-	OPERATOR_NEGATE = OPERATOR_UNARY
+	/* logical */
+	OPERATOR_AND,
+	OPERATOR_OR,
+	/* compare */
+	OPERATOR_EQ,
+	OPERATOR_GEQ,
+	OPERATOR_LEQ,
+	OPERATOR_NEQ,
+	OPERATOR_GT,
+	OPERATOR_LT,
+	OPERATOR_LIKE,
+	/* unary */
+	OPERATOR_NEGATE = OPERATOR_UNARY,
+	OPERATOR_ISNULL,
+	OPERATOR_NOT,
 } operator_type_t;
 
 typedef enum {
@@ -41,6 +56,7 @@ typedef enum {
 	TERM_INT,
 	TERM_STRING,
 	TERM_FLOAT,
+	TERM_BOOL,
 	TERM_NULL
 } term_type_t;
 
@@ -80,6 +96,7 @@ typedef struct expr_node_t {
 	union {
 		int    val_i;
 		float  val_f;
+		char   val_b;
 		char  *val_s;
 		struct column_ref_t *column_ref;
 		struct expr_node_t  *left;
@@ -88,6 +105,17 @@ typedef struct expr_node_t {
 	operator_type_t op;
 	term_type_t term_type;
 } expr_node_t;
+
+typedef struct delete_info_t {
+	char *table;
+	expr_node_t *where;
+} delete_info_t;
+
+typedef struct update_info_t {
+	char *table;
+	column_ref_t *column_ref;
+	expr_node_t *where, *value;
+} update_info_t;
 
 #ifdef __cplusplus
 };

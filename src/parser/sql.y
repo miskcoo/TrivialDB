@@ -24,6 +24,8 @@ void yyerror(const char *s);
 	struct linked_list_t      *list;
 	struct table_constraint_t *constraint;
 	struct insert_info_t      *insert_info;
+	struct update_info_t      *update_info;
+	struct delete_info_t      *delete_info;
 	struct expr_node_t        *expr;
 }
 
@@ -57,7 +59,10 @@ void yyerror(const char *s);
 %type <list> column_list expr_list insert_values
 %type <list> table_extra_options table_extra_option_list
 %type <insert_info> insert_stmt insert_columns
-%type <expr> expr factor term
+%type <update_info> update_stmt
+%type <delete_info> delete_stmt
+%type <expr> expr factor term condition cond_term where_clause
+%type <val_i> logical_op compare_op
 
 %start sql_stmts
 
@@ -75,6 +80,8 @@ sql_stmt   :  create_table_stmt ';'    { execute_create_table($1); }
 		   |  show_table_stmt ';'      { execute_show_table($1); }
 		   |  drop_table_stmt ';'      { execute_drop_table($1); }
 		   |  insert_stmt ';'          { execute_insert($1); }
+		   |  update_stmt ';'          { execute_update($1); }
+		   |  delete_stmt ';'          { execute_delete($1); }
 		   |  EXIT ';'                 { execute_quit(); exit(0); }
 		   |  CREATE INDEX table_name '(' IDENTIFIER ')' ';' { execute_create_index($3, $5); }
 		   |  DROP   INDEX table_name '(' IDENTIFIER ')' ';' { execute_drop_index($3, $5); }
@@ -125,6 +132,26 @@ insert_columns       : table_name {
 						$$->values  = NULL;
 					 }
 					 ;
+
+delete_stmt         : DELETE FROM table_name where_clause {
+					 	$$ = (delete_info_t*)malloc(sizeof(delete_info_t));
+						$$->table = $3;
+						$$->where = $4;
+					}
+					;
+
+update_stmt         : UPDATE table_name SET column_ref '=' expr where_clause {
+					 	$$ = (update_info_t*)malloc(sizeof(update_info_t));
+						$$->table = $2;
+						$$->value = $6;
+						$$->where = $7;
+						$$->column_ref = $4;
+					}
+					;
+
+where_clause        : WHERE condition { $$ = $2; }
+					| /* empty */     { $$ = NULL; }
+					;
 
 table_extra_options : ',' table_extra_option_list  { $$ = $2; }
 					| /* empty */                  { $$ = NULL; }
@@ -205,6 +232,59 @@ field_type  : INTEGER { $$ = FIELD_TYPE_INT; }
 		    | CHAR    { $$ = FIELD_TYPE_CHAR; }
 		    | VARCHAR { $$ = FIELD_TYPE_VARCHAR; }
 		    ;
+
+logical_op : AND  { $$ = OPERATOR_AND; }
+		   | OR   { $$ = OPERATOR_OR; }
+
+compare_op : '='  { $$ = OPERATOR_EQ; }
+		   | '<'  { $$ = OPERATOR_LT; }
+		   | '>'  { $$ = OPERATOR_GT; }
+		   | LEQ  { $$ = OPERATOR_LEQ; }
+		   | GEQ  { $$ = OPERATOR_GEQ; }
+		   | NEQ  { $$ = OPERATOR_NEQ; }
+		   | LIKE { $$ = OPERATOR_LIKE; }
+		   ;
+
+condition  : condition logical_op cond_term {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->right = $3;
+				$$->op    = $2;
+		   }
+		   | cond_term { $$ = $1; }
+		   ;
+
+cond_term  : expr compare_op expr {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->right = $3;
+				$$->op    = $2;
+		   }
+		   | expr IN '(' expr_list ')' {
+		   		/* TODO: fill this */
+		   }
+		   | expr IS NULL_TOKEN {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->op    = OPERATOR_ISNULL;
+		   }
+		   | NOT cond_term {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $2;
+				$$->op    = OPERATOR_NOT;
+		   }
+		   | '(' condition ')' { $$ = $2; }
+		   | TRUE {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->val_b     = 1;
+				$$->term_type = TERM_BOOL;
+		   }
+		   | FALSE {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->val_b     = 0;
+				$$->term_type = TERM_BOOL;
+		   }
+		   ;
 
 expr_list  : expr_list ',' expr {
 				$$ = (linked_list_t*)malloc(sizeof(linked_list_t));

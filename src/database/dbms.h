@@ -25,6 +25,8 @@ public:
 	void drop_index(const char *tb_name, const char *col_name);
 
 	void insert_rows(const insert_info_t *info);
+	void delete_rows(const delete_info_t *info);
+	void update_rows(const update_info_t *info);
 
 public:
 	bool assert_db_open();

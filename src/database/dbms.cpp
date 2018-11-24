@@ -59,6 +59,14 @@ void dbms::create_table(const table_header_t *header)
 		cur_db->create_table(header);
 }
 
+void dbms::update_rows(const update_info_t *info)
+{
+}
+
+void dbms::delete_rows(const delete_info_t *info)
+{
+}
+
 void dbms::insert_rows(const insert_info_t *info)
 {
 	if(!assert_db_open())
