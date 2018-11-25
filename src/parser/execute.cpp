@@ -58,6 +58,11 @@ void execute_delete(const delete_info_t *delete_info)
 	dbms::get_instance()->delete_rows(delete_info);
 }
 
+void execute_select(const select_info_t *select_info)
+{
+	dbms::get_instance()->select_rows(select_info);
+}
+
 void execute_update(const update_info_t *update_info)
 {
 	dbms::get_instance()->update_rows(update_info);

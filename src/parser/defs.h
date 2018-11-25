@@ -25,6 +25,10 @@ typedef enum {
 	TABLE_CONSTRAINT_CHECK
 } table_constraint_type_t;
 
+typedef enum {
+	TABLE_JOIN_NONE,
+} table_join_type_t;
+
 #define OPERATOR_UNARY 0x80
 typedef enum {
 	OPERATOR_NONE = 0,
@@ -48,6 +52,12 @@ typedef enum {
 	OPERATOR_NEGATE = OPERATOR_UNARY,
 	OPERATOR_ISNULL,
 	OPERATOR_NOT,
+	/* aggregate */
+	OPERATOR_SUM,
+	OPERATOR_AVG,
+	OPERATOR_MIN,
+	OPERATOR_MAX,
+	OPERATOR_COUNT,
 } operator_type_t;
 
 typedef enum {
@@ -116,6 +126,17 @@ typedef struct update_info_t {
 	column_ref_t *column_ref;
 	expr_node_t *where, *value;
 } update_info_t;
+
+typedef struct select_info_t {
+	linked_list_t *tables, *exprs;
+	expr_node_t *where;
+} select_info_t;
+
+typedef struct table_join_info_t {
+	table_join_type_t join_type;
+	char *table, *join_table;
+	expr_node_t *cond;
+} table_join_info_t;
 
 #ifdef __cplusplus
 };

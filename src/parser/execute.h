@@ -16,6 +16,7 @@ void execute_drop_table(const char *table_name);
 void execute_show_table(const char *table_name);
 void execute_insert(const insert_info_t *insert_info);
 void execute_delete(const delete_info_t *delete_info);
+void execute_select(const select_info_t *select_info);
 void execute_update(const update_info_t *update_info);
 void execute_create_index(const char *table_name, const char *col_name);
 void execute_drop_index(const char *table_name, const char *col_name);

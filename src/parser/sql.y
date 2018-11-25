@@ -1,4 +1,6 @@
-/* Modified from https://raw.githubusercontent.com/thinkpad20/sql/master/src/yacc/sql.y */
+/* Modified from https://raw.githubusercontent.com/thinkpad20/sql/master/src/yacc/sql.y
+             and https://github.com/Harry-Chen/SimpleDB
+ * Grammar: http://h2database.com/html/grammar.html#select */
 
 %define parse.error verbose
 
@@ -26,6 +28,8 @@ void yyerror(const char *s);
 	struct insert_info_t      *insert_info;
 	struct update_info_t      *update_info;
 	struct delete_info_t      *delete_info;
+	struct select_info_t      *select_info;
+	struct table_join_info_t  *join_info;
 	struct expr_node_t        *expr;
 }
 
@@ -61,8 +65,12 @@ void yyerror(const char *s);
 %type <insert_info> insert_stmt insert_columns
 %type <update_info> update_stmt
 %type <delete_info> delete_stmt
+%type <select_info> select_stmt
 %type <expr> expr factor term condition cond_term where_clause
-%type <val_i> logical_op compare_op
+%type <expr> aggregate_expr aggregate_term select_expr
+%type <val_i> logical_op compare_op aggregate_op
+%type <list> select_expr_list select_expr_list_s table_refs
+%type <join_info> table_item
 
 %start sql_stmts
 
@@ -82,6 +90,7 @@ sql_stmt   :  create_table_stmt ';'    { execute_create_table($1); }
 		   |  insert_stmt ';'          { execute_insert($1); }
 		   |  update_stmt ';'          { execute_update($1); }
 		   |  delete_stmt ';'          { execute_delete($1); }
+		   |  select_stmt ';'          { execute_select($1); }
 		   |  EXIT ';'                 { execute_quit(); exit(0); }
 		   |  CREATE INDEX table_name '(' IDENTIFIER ')' ';' { execute_create_index($3, $5); }
 		   |  DROP   INDEX table_name '(' IDENTIFIER ')' ';' { execute_drop_index($3, $5); }
@@ -147,6 +156,81 @@ update_stmt         : UPDATE table_name SET column_ref '=' expr where_clause {
 						$$->where = $7;
 						$$->column_ref = $4;
 					}
+					;
+
+select_stmt         : SELECT select_expr_list_s FROM table_refs where_clause {
+					 	$$ = (select_info_t*)malloc(sizeof(select_info_t));
+						$$->tables = $2;
+						$$->exprs  = $4;
+						$$->where  = $5;
+					}
+					;
+
+table_refs          : table_refs ',' table_item {
+						$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+						$$->data = $3;
+						$$->next = $1;
+					}
+					| table_item {
+						$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+						$$->data = $1;
+						$$->next = NULL;
+					}
+					;
+
+table_item          : table_name {
+					 	$$ = (table_join_info_t*)calloc(1, sizeof(table_join_info_t));
+						$$->join_type = TABLE_JOIN_NONE;
+						$$->table = $1;
+					}
+					;
+
+select_expr_list_s  : select_expr_list { $$ = $1; }
+					| '*'              { $$ = NULL; }
+
+select_expr_list    : select_expr_list ',' select_expr {
+						$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+						$$->data = $3;
+						$$->next = $1;
+					}
+					| select_expr {
+						$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+						$$->data = $1;
+						$$->next = NULL;
+					}
+					;
+
+select_expr         : expr            { $$ = $1; }
+					| aggregate_expr  { $$ = $1; }
+
+aggregate_expr      : aggregate_op '(' aggregate_term ')' {
+						$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+						$$->left  = $3;
+						$$->op    = $1;
+					}
+					| COUNT '(' aggregate_term ')' {
+						$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+						$$->left  = $3;
+						$$->op    = OPERATOR_COUNT;
+					}
+					| COUNT '(' '*' ')' {
+						$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+						$$->left  = NULL;
+						$$->op    = OPERATOR_COUNT;
+					}
+					;
+
+aggregate_term      : column_ref {
+						$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+						$$->column_ref = $1;
+						$$->term_type  = TERM_COLUMN_REF;
+					}
+					;
+
+aggregate_op        : SUM   { $$ = OPERATOR_SUM; }
+					| AVG   { $$ = OPERATOR_AVG; }
+					| MIN   { $$ = OPERATOR_MIN; }
+					| MAX   { $$ = OPERATOR_MAX; }
 					;
 
 where_clause        : WHERE condition { $$ = $2; }

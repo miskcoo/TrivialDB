@@ -26,6 +26,7 @@ public:
 
 	void insert_rows(const insert_info_t *info);
 	void delete_rows(const delete_info_t *info);
+	void select_rows(const select_info_t *info);
 	void update_rows(const update_info_t *info);
 
 public:

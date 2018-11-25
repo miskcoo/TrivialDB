@@ -63,6 +63,10 @@ void dbms::update_rows(const update_info_t *info)
 {
 }
 
+void dbms::select_rows(const select_info_t *info)
+{
+}
+
 void dbms::delete_rows(const delete_info_t *info)
 {
 }
