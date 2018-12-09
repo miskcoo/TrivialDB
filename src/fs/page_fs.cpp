@@ -66,6 +66,7 @@ void page_fs::writeback(int file_id)
 			std::fseek(file, (long)PAGE_SIZE * info.second, SEEK_SET);
 			std::fwrite(buffer + i * PAGE_SIZE, PAGE_SIZE, 1, file);
 			page2index.erase(page2index.find(info));
+			index2page[i] = { 0, 0 };
 		}
 	}
 
