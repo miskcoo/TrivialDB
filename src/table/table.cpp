@@ -1,5 +1,7 @@
 #include "table.h"
 #include "../index/index.h"
+#include "../expression/expression.h"
+#include "../utils/type_cast.h"
 #include <cstdio>
 #include <cassert>
 #include <cstdio>
@@ -19,6 +21,33 @@ index_manager::comparer_t get_index_comparer(int type)
 		default:
 			assert(0);
 			return string_comparer;
+	}
+}
+
+void table_manager::cache_record(record_manager *rm)
+{
+	expression::cache_clear(header.table_name);
+	int null_mark;
+	rm->seek(4);
+	rm->read(&null_mark, 4);
+	for(int i = 0; i < header.col_num; ++i)
+	{
+		if(i == header.main_index && header.is_main_index_additional)
+			continue;
+
+		char *buf = nullptr;
+		if(!((null_mark >> i) & 1))
+		{
+			buf = tmp_cache + header.col_offset[i];
+			rm->seek(header.col_offset[i]);
+			rm->read(buf, header.col_length[i]);
+		}
+
+		expression::cache_column(
+			header.table_name,
+			header.col_name[i],
+			typecast::column_to_expr(buf, header.col_type[i])
+		);
 	}
 }
 
@@ -102,6 +131,8 @@ void table_manager::close()
 	pg->close();
 	pg = nullptr;
 	delete []tmp_record;
+	delete []tmp_cache;
+	tmp_cache = nullptr;
 	tmp_record = nullptr;
 	is_open = false;
 }
@@ -124,6 +155,7 @@ void table_manager::allocate_temp_record()
 	for(int i = 0; i < header.col_num; ++i)
 		tot_len += header.col_length[i];
 	tmp_record = new char[tmp_record_size = tot_len];
+	tmp_cache = new char[tot_len];
 	tmp_null_mark = reinterpret_cast<int*>(tmp_record + 4);
 }
 
@@ -190,6 +222,12 @@ bool table_manager::remove_record(int rid)
 	return btr->erase(rid);
 }
 
+btree_iterator<int_btree::leaf_page> table_manager::get_record_iterator_lower_bound(int rid)
+{
+	auto ret = btr->lower_bound(rid);
+	return { pg.get(), ret.first, ret.second };
+}
+
 record_manager table_manager::get_record_ptr_lower_bound(int rid, bool dirty)
 {
 	auto ret = btr->lower_bound(rid);
@@ -209,24 +247,28 @@ record_manager table_manager::get_record_ptr(int rid, bool dirty)
 void table_manager::dump_record(int rid)
 {
 	record_manager rec = get_record_ptr(rid);
+	dump_record(&rec);
+}
 
+void table_manager::dump_record(record_manager *rm)
+{
+	char *buf = tmp_cache;
 	for(int i = 0; i < header.col_num; ++i)
 	{
 		std::printf("%s = ", header.col_name[i]);
-		rec.seek(header.col_offset[i]);
-		char buf[1024];
+		rm->seek(header.col_offset[i]);
 		switch(header.col_type[i])
 		{
 			case COL_TYPE_INT:
-				rec.read(buf, 4);
+				rm->read(buf, 4);
 				std::printf("%d\n", *(int*)buf);
 				break;
 			case COL_TYPE_FLOAT:
-				rec.read(buf, 4);
+				rm->read(buf, 4);
 				std::printf("%f\n", *(float*)buf);
 				break;
 			case COL_TYPE_VARCHAR:
-				rec.read(buf, header.col_length[i]);
+				rm->read(buf, header.col_length[i]);
 				std::printf("%s\n", buf);
 				break;
 			default:

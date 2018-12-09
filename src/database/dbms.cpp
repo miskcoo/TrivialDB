@@ -3,6 +3,7 @@
 #include "../table/table.h"
 #include "../expression/expression.h"
 #include "../utils/type_cast.h"
+#include "../table/record.h"
 #include <vector>
 
 dbms::dbms()
@@ -13,6 +14,38 @@ dbms::dbms()
 dbms::~dbms()
 {
 	close_database();
+}
+
+template<typename Callback>
+void dbms::iterate(std::vector<table_manager*> required_tables, expr_node_t *cond, Callback callback)
+{
+
+}
+
+template<typename Callback>
+void dbms::iterate_one_table(table_manager* table, expr_node_t *cond, Callback callback)
+{
+	auto bit = table->get_record_iterator_lower_bound(0);
+	for(; !bit.is_end(); bit.next())
+	{
+		record_manager rm(bit.get_pager());
+		rm.open(bit.get(), false);
+		table->cache_record(&rm);
+		if(cond)
+		{
+			bool result = false;
+			try {
+				result = typecast::expr_to_bool(expression::eval(cond));
+			} catch(const char *msg) {
+				std::puts(msg);
+				return;
+			}
+
+			if(!result) continue;
+		}
+
+		callback(table, &rm);
+	}
 }
 
 void dbms::close_database()
@@ -65,6 +98,34 @@ void dbms::update_rows(const update_info_t *info)
 
 void dbms::select_rows(const select_info_t *info)
 {
+	if(!assert_db_open())
+		return;
+	
+	// get required tables
+	std::vector<table_manager*> required_tables;
+	for(linked_list_t *table_l = info->tables; table_l; table_l = table_l->next)
+	{
+		table_join_info_t *table_info = (table_join_info_t*)table_l->data;
+		table_manager *tm = cur_db->get_table(table_info->table);
+		if(tm == nullptr)
+		{
+			std::fprintf(stderr, "[Error] table `%s` doesn't exists.\n", table_info->table);
+			return;
+		} else required_tables.push_back(tm);
+	}
+
+	// iterate records
+	int counter = 0;
+	iterate_one_table(required_tables[0], info->where,
+		[&](table_manager *table, record_manager *record)
+		{
+			table->dump_record(record);
+			++counter;
+		}
+	);
+
+	expression::cache_clear();
+	std::printf("[Info] %d row(s) selected.\n", counter);
 }
 
 void dbms::delete_rows(const delete_info_t *info)

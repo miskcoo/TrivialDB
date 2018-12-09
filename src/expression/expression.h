@@ -2,6 +2,7 @@
 #define __TRIVIALDB_EXPRESSION__
 
 #include "../parser/defs.h"
+#include <string>
 
 struct expression
 {
@@ -15,6 +16,9 @@ struct expression
 	term_type_t type;
 
 	static expression eval(const expr_node_t *expr);
+	static void cache_clear();
+	static void cache_clear(const char *table);
+	static void cache_column(const char *table, const char *col, const expression &expr);
 };
 
 #endif

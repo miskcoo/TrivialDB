@@ -1,8 +1,63 @@
 #include <cassert>
+#include <unordered_map>
+#include <string>
 #include "expression.h"
 #include "../utils/comparer.h"
 
 #define THROW_UNSUPPORTED_OPERATOR throw "[Error] unsupported operator.";
+#define THROW_COLUMN_NOT_CACHED    throw "[Error] column not cached.";
+#define THROW_COLUMN_NOT_UNIQUE    throw "[Error] column not unique.";
+
+static std::unordered_multimap<
+	std::string,   // col_name
+	std::pair<std::string, expression>  // table_name, expression
+> __expr_column_cache;
+
+void expression::cache_clear()
+{
+	__expr_column_cache.clear();
+}
+
+void expression::cache_clear(const char *table)
+{
+	for(auto it = __expr_column_cache.begin(); it != __expr_column_cache.end(); )
+	{
+		if(it->second.first == table)
+			it = __expr_column_cache.erase(it);
+		else ++it;
+	}
+}
+
+void expression::cache_column(const char *table, const char *col, const expression &expr)
+{
+	__expr_column_cache.insert(
+		std::make_pair(
+			std::string(col),
+			std::make_pair( std::string(table), expr )
+		)
+	);
+}
+
+inline expression eval_terminal_column_ref(const expr_node_t *expr)
+{
+	assert(expr->term_type == TERM_COLUMN_REF);
+	std::string col = expr->column_ref->column;
+	auto num = __expr_column_cache.count(col);
+	if(!num)
+	{
+		THROW_COLUMN_NOT_CACHED;
+	} else if(num > 1 && !expr->column_ref->table) {
+		THROW_COLUMN_NOT_UNIQUE;
+	} else {
+		for(auto it = __expr_column_cache.find(col); it != __expr_column_cache.end(); ++it)
+		{
+			if(!expr->column_ref->table || it->second.first == expr->column_ref->table)
+				return it->second.second;
+		}
+	}
+
+	THROW_COLUMN_NOT_CACHED;
+}
 
 inline expression eval_terminal(const expr_node_t *expr)
 {
@@ -25,7 +80,7 @@ inline expression eval_terminal(const expr_node_t *expr)
 		case TERM_NULL:
 			break;
 		case TERM_COLUMN_REF:
-			// TODO: load column info
+			ret = eval_terminal_column_ref(expr);
 			break;
 		default:
 			assert(0);

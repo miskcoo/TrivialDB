@@ -22,6 +22,54 @@ namespace typecast
 		}
 	}
 
+	inline expression column_to_expr(char *data, int type)
+	{
+		expression expr;
+		if(data == nullptr)
+		{
+			expr.type = TERM_NULL;
+			return expr;
+		}
+
+		switch(type)
+		{
+			case COL_TYPE_INT:
+				expr.val_i = *(int*)data;
+				expr.type = TERM_INT;
+				break;
+			case COL_TYPE_FLOAT:
+				expr.val_f = *(float*)data;
+				expr.type = TERM_FLOAT;
+				break;
+			case COL_TYPE_VARCHAR:
+				expr.val_s = data;
+				expr.type = TERM_STRING;
+				break;
+			default:
+				throw "[Error] wrong datatype.";
+		}
+		return expr;
+	}
+
+	inline bool expr_to_bool(const expression &expr)
+	{
+		switch(expr.type)
+		{
+			case TERM_INT:
+				return expr.val_i != 0;
+			case TERM_FLOAT:
+				return expr.val_f != 0;
+			case TERM_BOOL:
+				return expr.val_b;
+			case TERM_STRING:
+				return expr.val_s[0] != 0;  // not empty string
+			case TERM_NULL:
+				return false;
+			default:
+				return false;
+		}
+	}
+
 	inline char *expr_to_db(expression &expr, term_type_t desired)
 	{
 		char *ret = nullptr;

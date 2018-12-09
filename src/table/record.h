@@ -14,6 +14,9 @@ class record_manager
 public:
 	record_manager(pager *pg) : pg(pg), pid(0) {}
 	void open(int pid, int pos, bool dirty);
+	void open(std::pair<int, int> pw, bool dirty) {
+		open(pw.first, pw.second, dirty);
+	}
 	record_manager& seek(int offset);
 	record_manager& write(const void* data, int size);
 	record_manager& read(void* buf, int size);

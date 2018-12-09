@@ -18,11 +18,11 @@ private:
 		pid = p;
 		if(p)
 		{
-			PageType *page = (PageType*)pg->read(p);
-			assert(page->magic() == PAGE_VARIANT || page->magic() == PAGE_INDEX_LEAF);
-			cur_size = page->size();
-			next_pid = page->next_page();
-			prev_pid = page->prev_page();
+			PageType page { pg->read(p), pg };
+			assert(page.magic() == PAGE_VARIANT || page.magic() == PAGE_INDEX_LEAF);
+			cur_size = page.size();
+			next_pid = page.next_page();
+			prev_pid = page.prev_page();
 		}
 	}
 public:
@@ -34,6 +34,7 @@ public:
 	btree_iterator(pager *pg, value_t p)
 		: btree_iterator(pg, p.first, p.second) {}
 
+	pager *get_pager() { return pg; }
 	value_t get() { return { pid, pos }; }
 	value_t operator * () { return get(); }
 	value_t next()

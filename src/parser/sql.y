@@ -160,8 +160,8 @@ update_stmt         : UPDATE table_name SET column_ref '=' expr where_clause {
 
 select_stmt         : SELECT select_expr_list_s FROM table_refs where_clause {
 					 	$$ = (select_info_t*)malloc(sizeof(select_info_t));
-						$$->tables = $2;
-						$$->exprs  = $4;
+						$$->tables = $4;
+						$$->exprs  = $2;
 						$$->where  = $5;
 					}
 					;

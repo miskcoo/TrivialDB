@@ -2,9 +2,11 @@
 #define __TRIVIALDB_DATABASE__
 #include "../defs.h"
 #include "../table/table.h"
+#include "../expression/expression.h"
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <vector>
 
 class database
 {

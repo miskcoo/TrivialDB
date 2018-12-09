@@ -4,9 +4,11 @@
 #include <stdint.h>
 #include <fstream>
 #include <memory>
+#include <vector>
 
 #include "../defs.h"
 #include "../btree/btree.h"
+#include "../btree/iterator.h"
 #include "../index/index.h"
 #include "table_header.h"
 #include "record.h"
@@ -27,6 +29,7 @@ class table_manager
 
 	int tmp_record_size;
 	char *tmp_record;
+	char *tmp_cache;
 	int *tmp_null_mark;
 	void allocate_temp_record();
 	void load_indices();
@@ -50,14 +53,17 @@ public:
 	bool remove_record(int rid);
 	bool modify_record(int rid, int col, const void* data);
 	bool set_temp_record(int col, const void* data);
+	void cache_record(record_manager *rm);
 
 	void create_index(const char *col_name);
 
 	// get the record R such that R.rid = min_{r.rid >= rid} r.rid
 	record_manager get_record_ptr_lower_bound(int rid, bool dirty=false);
+	btree_iterator<int_btree::leaf_page> get_record_iterator_lower_bound(int rid);
 	// get the record R such that R.rid = rid
 	record_manager get_record_ptr(int rid, bool dirty=false);
 	void dump_record(int rid);
+	void dump_record(record_manager *rm);
 };
 
 #endif

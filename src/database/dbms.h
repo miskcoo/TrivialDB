@@ -3,6 +3,7 @@
 #include "database.h"
 #include "../table/table.h"
 #include "../parser/defs.h"
+#include "../expression/expression.h"
 
 class dbms
 {
@@ -31,7 +32,14 @@ public:
 
 public:
 	bool assert_db_open();
+	void cache_record(table_manager *tm, record_manager *rm);
 	
+
+	template<typename Callback>
+	void iterate(std::vector<table_manager*> required_tables, expr_node_t *cond, Callback callback);
+
+	template<typename Callback>
+	void iterate_one_table(table_manager* table, expr_node_t *cond, Callback callback);
 
 public:
 	static dbms* get_instance()
