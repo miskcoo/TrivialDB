@@ -13,4 +13,13 @@ INSERT INTO Persons VALUES
 	(23, 'Yi', 'Wang', 'Tsinghua Univ.', 'Beijing'),
 	(-238, 'Zhong', 'Lei', 'Beijing Univ.', 'Neijing'),
 	(1+999, 'Wasserstein', 'Zhang', 'Hunan Univ.', 'Hunan');
+
+SELECT PersonID FROM Persons;
+UPDATE Persons SET LastName = 'Hilbert' WHERE PersonID = -238;
+SELECT PersonID FROM Persons;
+INSERT INTO Persons VALUES 
+	(100001, 'Zarisk', 'C', 'Unknown', 'US'),
+	(100002, 'Wasserstein', 'D', 'Unknwon.', 'EU');
+DELETE FROM Persons WHERE PersonID < 0;
+SELECT PersonID FROM Persons;
 EXIT;
