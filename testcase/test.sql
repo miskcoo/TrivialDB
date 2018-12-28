@@ -22,4 +22,5 @@ INSERT INTO Persons VALUES
 	(100002, 'Wasserstein', 'D', 'Unknwon.', 'EU');
 DELETE FROM Persons WHERE PersonID < 0;
 SELECT PersonID FROM Persons;
+DELETE FROM Persons;
 EXIT;

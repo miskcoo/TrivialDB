@@ -1,6 +1,7 @@
 #include "dbms.h"
 #include "database.h"
 #include "../table/table.h"
+#include "../index/index.h"
 #include "../expression/expression.h"
 #include "../utils/type_cast.h"
 #include "../table/record.h"
@@ -24,10 +25,100 @@ void dbms::iterate(
 {
 	if(required_tables.size() == 1)
 	{
-		iterate_one_table(required_tables[0], cond, callback);
+		std::vector<record_manager*> rm_list(1);
+		std::vector<int> rid_list(1);
+		iterate_one_table(required_tables[0], cond, [&](table_manager *, record_manager *rm, int rid) -> bool {
+			rm_list[0] = rm;
+			rid_list[0] = rid;
+			return callback(required_tables, rm_list, rid_list);
+		} );
+	} else if(required_tables.size() == 2) {
+		iterate_two_tables_with_joint_cond_equal(required_tables[0], required_tables[1], cond, callback);
 	} else {
 		// TODO
 	}
+}
+
+template<typename Callback>
+bool dbms::iterate_two_tables_with_joint_cond_equal(
+		table_manager* tb1,
+		table_manager* tb2,
+		expr_node_t *cond,
+		Callback callback)
+{
+	expr_node_t *join_cond = get_join_cond(cond);
+	if(!join_cond) return false;
+
+	if(join_cond->op != OPERATOR_EQ)
+		return false;
+
+	if(std::strcmp(join_cond->left->column_ref->table, tb1->get_table_name()) != 0)
+		std::swap(tb1, tb2);
+
+	int cid1 = tb1->lookup_column(join_cond->left->column_ref->column);
+	int cid2 = tb2->lookup_column(join_cond->right->column_ref->column);
+	if(cid1 < 0 || cid2 < 0)
+		return false;
+
+	index_manager *idx1 = tb1->get_index(cid1);
+	index_manager *idx2 = tb2->get_index(cid2);
+
+	if(!idx1 && !idx2)
+	{
+		std::printf("[Info] No index for %s.%s and %s.%s\n",
+				join_cond->left->column_ref->table,
+				join_cond->left->column_ref->column,
+				join_cond->right->column_ref->table,
+				join_cond->right->column_ref->column);
+		return false;
+	}
+
+	std::vector<table_manager*> table_list { tb1, tb2 };
+	std::vector<record_manager*> record_list(2);
+	std::vector<int> rid_list(2);
+	if(idx2 != nullptr)
+	{
+		// iterate table 1 first
+		auto tb1_it = tb1->get_record_iterator_lower_bound(0);
+		for(; !tb1_it.is_end(); tb1_it.next())
+		{
+			int tb1_rid;
+			record_manager tb1_rm(tb1_it.get_pager());
+			tb1_rm.open(tb1_it.get(), false);
+			tb1_rm.read(&tb1_rid, 4);
+			tb1->cache_record(&tb1_rm);
+
+			// iterate table 2 by index
+			const char *tb1_col = tb1->get_cached_column(cid1);
+			if(tb1_col == nullptr) continue;
+			auto tb2_it = idx2->get_iterator_lower_bound(tb1_col);
+			for(; !tb2_it.is_end(); tb2_it.next())
+			{
+				int tb2_rid;
+				record_manager tb2_rm = tb2->open_record_from_index_lower_bound(tb2_it.get(), &tb2_rid);
+				tb2->cache_record(&tb2_rm);
+
+				bool result = false;
+				try {
+					result = typecast::expr_to_bool(expression::eval(cond));
+				} catch(const char *msg) {
+					std::puts(msg);
+					return true;
+				}
+
+				if(!result) break;
+
+				record_list[0] = &tb1_rm;
+				record_list[1] = &tb2_rm;
+				rid_list[0] = tb1_rid;
+				rid_list[1] = tb2_rid;
+				if(!callback(table_list, record_list, rid_list))
+					break;
+			}
+		}
+	}
+
+	return true;
 }
 
 template<typename Callback>
@@ -169,9 +260,13 @@ void dbms::select_rows(const select_info_t *info)
 	// iterate records
 	int counter = 0;
 	iterate(required_tables, info->where,
-		[&](table_manager *table, record_manager *record, int)
+		[&](const std::vector<table_manager*> &table,
+			const std::vector<record_manager*> &record,
+			const std::vector<int>& )
 		{
-			table->dump_record(record);
+			for(size_t i = 0; i < table.size(); ++i)
+				table[i]->dump_record(record[i]);
+			std::puts("----------------");
 			++counter;
 			return true;
 		}
@@ -299,4 +394,19 @@ bool dbms::assert_db_open()
 		return true;
 	std::fprintf(stderr, "[Error] database is not opened.\n");
 	return false;
+}
+
+expr_node_t *dbms::get_join_cond(expr_node_t *cond)
+{
+	if(!cond) return nullptr;
+	if(cond->left->term_type == TERM_COLUMN_REF && cond->right->term_type == TERM_COLUMN_REF)
+	{
+		return cond;
+	} else if(cond->left->term_type == TERM_NONE) {
+		return get_join_cond(cond->right);
+	} else if(cond->right->term_type == TERM_NONE) {
+		return get_join_cond(cond->left);
+	} else {
+		return nullptr;
+	}
 }

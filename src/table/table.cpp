@@ -24,12 +24,23 @@ index_manager::comparer_t get_index_comparer(int type)
 	}
 }
 
+record_manager table_manager::open_record_from_index_lower_bound(
+	std::pair<int, int> idx_pos, int *rid)
+{
+	index_btree::leaf_page page { pg->read(idx_pos.first), pg.get() };
+	int r = page.get_child(idx_pos.second);
+	record_manager rm = get_record_ptr_lower_bound(r, false);
+	if(rid != nullptr) rm.read(rid, 4);
+	return rm;
+}
+
 void table_manager::cache_record(record_manager *rm)
 {
 	expression::cache_clear(header.table_name);
 	int null_mark;
 	rm->seek(4);
 	rm->read(&null_mark, 4);
+	((int*)tmp_cache)[1] = null_mark;
 	for(int i = 0; i < header.col_num; ++i)
 	{
 		if(i == header.main_index && header.is_main_index_additional)
@@ -49,6 +60,15 @@ void table_manager::cache_record(record_manager *rm)
 			typecast::column_to_expr(buf, header.col_type[i])
 		);
 	}
+}
+
+const char* table_manager::get_cached_column(int cid)
+{
+	assert(cid >= 0 && cid < header.col_num);
+	int null_mark = ((int*)tmp_cache)[1];
+	if(!((null_mark >> cid) & 1))
+		return tmp_cache + header.col_offset[cid];
+	else return nullptr;
 }
 
 void table_manager::load_indices()
@@ -255,7 +275,7 @@ void table_manager::dump_record(record_manager *rm)
 	char *buf = tmp_cache;
 	for(int i = 0; i < header.col_num; ++i)
 	{
-		std::printf("%s = ", header.col_name[i]);
+		std::printf("%s.%s\t= ", header.table_name, header.col_name[i]);
 		rm->seek(header.col_offset[i]);
 		switch(header.col_type[i])
 		{
@@ -289,13 +309,31 @@ bool table_manager::modify_record(int rid, int col, const void* data)
 	return true;
 }
 
+index_manager* table_manager::get_index(int cid)
+{
+	assert(cid >= 0 && cid < header.col_num);
+	return indices[cid];
+}
+
+bool table_manager::has_index(const char *col_name)
+{
+	int cid = lookup_column(col_name);
+	return has_index(cid);
+}
+
+bool table_manager::has_index(int cid)
+{
+	assert(cid >= 0 && cid < header.col_num);
+	return (header.flag_indexed >> cid) & 1u;
+}
+
 void table_manager::create_index(const char *col_name)
 {
 	int cid = lookup_column(col_name);
 	if(cid < 0)
 	{
 		std::fprintf(stderr, "[Error] column `%s' not exists.\n", col_name);
-	} else if(header.flag_indexed & (1u << cid)) {
+	} else if(has_index(cid)) {
 		std::fprintf(stderr, "[Error] index for column `%s' already exists.\n", col_name);
 	} else {
 		header.flag_indexed |= 1u << cid;

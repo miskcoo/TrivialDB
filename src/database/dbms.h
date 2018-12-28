@@ -33,13 +33,16 @@ public:
 public:
 	bool assert_db_open();
 	void cache_record(table_manager *tm, record_manager *rm);
-	
 
 	template<typename Callback>
 	void iterate(std::vector<table_manager*> required_tables, expr_node_t *cond, Callback callback);
 
 	template<typename Callback>
 	void iterate_one_table(table_manager* table, expr_node_t *cond, Callback callback);
+	template<typename Callback>
+	bool iterate_two_tables_with_joint_cond_equal(table_manager* t1, table_manager *t2, expr_node_t *cond, Callback callback);
+
+	static expr_node_t *get_join_cond(expr_node_t *cond);
 
 public:
 	static dbms* get_instance()

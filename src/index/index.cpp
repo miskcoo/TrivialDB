@@ -4,10 +4,11 @@
 
 index_manager::index_manager(pager *pg, int size, int root_pid, comparer_t comparer)
 {
+	this->pg = pg;
 	this->size = size;
 	buf = new char[size + sizeof(int)];
 	btr = new index_btree(pg, root_pid, size + sizeof(int),
-		[comparer](const char *a, const char *b) -> bool {
+		[comparer](const char *a, const char *b) -> int {
 			int r = comparer(a + sizeof(int), b + sizeof(int));
 			if(r != 0) return r;
 			return integer_comparer(*(int*)a, *(int*)b);
@@ -49,4 +50,10 @@ index_btree::search_result index_manager::lower_bound(const char *key, int rid)
 {
 	fill_buf(key, rid);
 	return btr->lower_bound(buf);
+}
+
+btree_iterator<index_btree::leaf_page> index_manager::get_iterator_lower_bound(const char *key, int rid)
+{
+	auto ret = lower_bound(key, rid);
+	return { pg, ret.first, ret.second };
 }

@@ -1,4 +1,5 @@
 #include "record.h"
+#include "table.h"
 #include "../page/overflow_page.h"
 #include <cstring>
 

@@ -47,15 +47,22 @@ public:
 	const char* get_column_name(int col) { return header.col_name[col]; }
 	uint8_t get_column_type(int col) { return header.col_type[col]; }
 	int get_column_num() { return header.col_num; }
+	const char *get_table_name() { return header.table_name; }
 
 	void init_temp_record();
 	int insert_record();
 	bool remove_record(int rid);
 	bool modify_record(int rid, int col, const void* data);
 	bool set_temp_record(int col, const void* data);
+
 	void cache_record(record_manager *rm);
+	const char* get_cached_column(int cid);
 
 	void create_index(const char *col_name);
+	bool has_index(const char *col_name);
+	bool has_index(int cid);
+	index_manager *get_index(int cid);
+	record_manager open_record_from_index_lower_bound(std::pair<int, int> idx_pos, int *rid = nullptr);
 
 	// get the record R such that R.rid = min_{r.rid >= rid} r.rid
 	record_manager get_record_ptr_lower_bound(int rid, bool dirty=false);

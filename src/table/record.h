@@ -4,6 +4,7 @@
 #include "../page/pager.h"
 #include "../page/data_page.h"
 
+class table_manager;
 class record_manager
 {
 	pager *pg;
