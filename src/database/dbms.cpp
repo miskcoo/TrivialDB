@@ -33,9 +33,16 @@ void dbms::iterate(
 			return callback(required_tables, rm_list, rid_list);
 		} );
 	} else if(required_tables.size() == 2) {
-		iterate_two_tables_with_joint_cond_equal(required_tables[0], required_tables[1], cond, callback);
+		if(iterate_two_tables_with_joint_cond_equal(required_tables[0], required_tables[1], cond, callback))
+		{
+			std::puts("[Info] Join two tables using index.");
+		} else {
+			iterate_many_tables(required_tables, cond, callback);
+			std::puts("[Info] Join two tables by enumerating.");
+		}
 	} else {
-		// TODO
+		iterate_many_tables(required_tables, cond, callback);
+		std::puts("[Info] Join many tables by enumerating.");
 	}
 }
 
@@ -73,48 +80,53 @@ bool dbms::iterate_two_tables_with_joint_cond_equal(
 		return false;
 	}
 
+	if(idx2 == nullptr)
+	{
+		std::swap(tb1, tb2);
+		std::swap(idx1, idx2);
+		std::swap(cid1, cid2);
+	}
+
 	std::vector<table_manager*> table_list { tb1, tb2 };
 	std::vector<record_manager*> record_list(2);
 	std::vector<int> rid_list(2);
-	if(idx2 != nullptr)
+
+	// iterate table 1 first
+	auto tb1_it = tb1->get_record_iterator_lower_bound(0);
+	for(; !tb1_it.is_end(); tb1_it.next())
 	{
-		// iterate table 1 first
-		auto tb1_it = tb1->get_record_iterator_lower_bound(0);
-		for(; !tb1_it.is_end(); tb1_it.next())
+		int tb1_rid;
+		record_manager tb1_rm(tb1_it.get_pager());
+		tb1_rm.open(tb1_it.get(), false);
+		tb1_rm.read(&tb1_rid, 4);
+		tb1->cache_record(&tb1_rm);
+
+		// iterate table 2 by index
+		const char *tb1_col = tb1->get_cached_column(cid1);
+		if(tb1_col == nullptr) continue;
+		auto tb2_it = idx2->get_iterator_lower_bound(tb1_col);
+		for(; !tb2_it.is_end(); tb2_it.next())
 		{
-			int tb1_rid;
-			record_manager tb1_rm(tb1_it.get_pager());
-			tb1_rm.open(tb1_it.get(), false);
-			tb1_rm.read(&tb1_rid, 4);
-			tb1->cache_record(&tb1_rm);
+			int tb2_rid;
+			record_manager tb2_rm = tb2->open_record_from_index_lower_bound(tb2_it.get(), &tb2_rid);
+			tb2->cache_record(&tb2_rm);
 
-			// iterate table 2 by index
-			const char *tb1_col = tb1->get_cached_column(cid1);
-			if(tb1_col == nullptr) continue;
-			auto tb2_it = idx2->get_iterator_lower_bound(tb1_col);
-			for(; !tb2_it.is_end(); tb2_it.next())
-			{
-				int tb2_rid;
-				record_manager tb2_rm = tb2->open_record_from_index_lower_bound(tb2_it.get(), &tb2_rid);
-				tb2->cache_record(&tb2_rm);
-
-				bool result = false;
-				try {
-					result = typecast::expr_to_bool(expression::eval(cond));
-				} catch(const char *msg) {
-					std::puts(msg);
-					return true;
-				}
-
-				if(!result) break;
-
-				record_list[0] = &tb1_rm;
-				record_list[1] = &tb2_rm;
-				rid_list[0] = tb1_rid;
-				rid_list[1] = tb2_rid;
-				if(!callback(table_list, record_list, rid_list))
-					break;
+			bool result = false;
+			try {
+				result = typecast::expr_to_bool(expression::eval(cond));
+			} catch(const char *msg) {
+				std::puts(msg);
+				return true;
 			}
+
+			if(!result) break;
+
+			record_list[0] = &tb1_rm;
+			record_list[1] = &tb2_rm;
+			rid_list[0] = tb1_rid;
+			rid_list[1] = tb2_rid;
+			if(!callback(table_list, record_list, rid_list))
+				break;
 		}
 	}
 
@@ -151,6 +163,63 @@ void dbms::iterate_one_table(
 		if(!callback(table, &rm, rid))
 			break;
 	}
+}
+
+template<typename Callback>
+void dbms::iterate_many_tables(
+	const std::vector<table_manager*> &table_list,
+	expr_node_t *cond, Callback callback)
+{
+	std::vector<record_manager*> record_list(table_list.size());
+	std::vector<int> rid_list(table_list.size());
+	iterate_many_tables_impl(table_list, record_list, rid_list, cond, callback, 0);
+}
+
+template<typename Callback>
+bool dbms::iterate_many_tables_impl(
+	const std::vector<table_manager*> &table_list,
+	std::vector<record_manager*> &record_list,
+	std::vector<int> &rid_list,
+	expr_node_t *cond, Callback callback, int now)
+{
+	if(now == (int)table_list.size())
+	{
+		if(cond)
+		{
+			bool result = false;
+			try {
+				result = typecast::expr_to_bool(expression::eval(cond));
+			} catch(const char *msg) {
+				std::puts(msg);
+				return false; // stop
+			}
+
+			if(!result)
+				return true; // continue
+		}
+
+		if(!callback(table_list, record_list, rid_list))
+			return false;  // stop
+		return true;  // continue
+	} else {
+		auto it = table_list[now]->get_record_iterator_lower_bound(0);
+		for(; !it.is_end(); it.next())
+		{
+			record_manager rm(it.get_pager());
+			rm.open(it.get(), false);
+			rm.read(&rid_list[now], 4);
+			table_list[now]->cache_record(&rm);
+			record_list[now] = &rm;
+			bool ret = iterate_many_tables_impl(
+				table_list, record_list, rid_list,
+				cond, callback, now + 1
+			);
+
+			if(!ret) return false;
+		}
+	}
+
+	return true;
 }
 
 void dbms::close_database()

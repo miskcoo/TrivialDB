@@ -41,6 +41,16 @@ public:
 	void iterate_one_table(table_manager* table, expr_node_t *cond, Callback callback);
 	template<typename Callback>
 	bool iterate_two_tables_with_joint_cond_equal(table_manager* t1, table_manager *t2, expr_node_t *cond, Callback callback);
+	template<typename Callback>
+	bool iterate_many_tables_impl(
+		const std::vector<table_manager*> &table_list,
+		std::vector<record_manager*> &record_list,
+		std::vector<int> &rid_list,
+		expr_node_t *cond, Callback callback, int now = 0);
+	template<typename Callback>
+	void iterate_many_tables(
+		const std::vector<table_manager*> &table_list,
+		expr_node_t *cond, Callback callback);
 
 	static expr_node_t *get_join_cond(expr_node_t *cond);
 
