@@ -6,6 +6,7 @@
 #include "../utils/type_cast.h"
 #include "../table/record.h"
 #include <vector>
+#include <limits>
 
 dbms::dbms()
 	: cur_db(nullptr)
@@ -340,15 +341,73 @@ void dbms::select_rows(const select_info_t *info)
 		} else required_tables.push_back(tm);
 	}
 
+	// get select expression name
+	std::vector<expr_node_t*> exprs;
+	std::vector<std::string> expr_names;
+	bool is_aggregate = false;
+	for(linked_list_t *link_p = info->exprs; link_p; link_p = link_p->next)
+	{
+		expr_node_t *expr = (expr_node_t*)link_p->data;
+		is_aggregate |= expression::is_aggregate(expr);
+		exprs.push_back(expr);
+		expr_names.push_back(expression::to_string(expr));
+	}
+
+	if(is_aggregate)
+	{
+		select_rows_aggregate(
+			info,
+			required_tables,
+			exprs,
+			expr_names
+		);
+
+		expression::cache_clear();
+		return;
+	}
+
 	// iterate records
 	int counter = 0;
+	std::puts("========= SELECT =========");
 	iterate(required_tables, info->where,
-		[&](const std::vector<table_manager*> &table,
-			const std::vector<record_manager*> &record,
+		[&](const std::vector<table_manager*> &tables,
+			const std::vector<record_manager*> &records,
 			const std::vector<int>& )
 		{
-			for(size_t i = 0; i < table.size(); ++i)
-				table[i]->dump_record(record[i]);
+			for(size_t i = 0; i < exprs.size(); ++i)
+			{
+				expression ret;
+				try {
+					ret = expression::eval(exprs[i]);
+				} catch (const char *e) {
+					std::fprintf(stderr, "%s\n", e);
+					return false;
+				}
+				std::printf("%s\t = ", expr_names[i].c_str());
+				switch(ret.type)
+				{
+					case TERM_INT:
+						std::printf("%d\n", ret.val_i);
+						break;
+					case TERM_FLOAT:
+						std::printf("%f\n", ret.val_f);
+						break;
+					case TERM_STRING:
+						std::printf("%s\n", ret.val_s);
+						break;
+					case TERM_BOOL:
+						std::printf("%s\n", ret.val_b ? "TRUE" : "FALSE");
+						break;
+					default:
+						debug_puts("[Error] Data type not supported!");
+				}
+			}
+
+			if(exprs.size() == 0)
+			{
+				for(size_t i = 0; i < tables.size(); ++i)
+					tables[i]->dump_record(records[i]);
+			}
 			std::puts("----------------");
 			++counter;
 			return true;
@@ -356,6 +415,120 @@ void dbms::select_rows(const select_info_t *info)
 	);
 
 	expression::cache_clear();
+	std::printf("[Info] %d row(s) selected.\n", counter);
+}
+
+void dbms::select_rows_aggregate(
+	const select_info_t *info,
+	const std::vector<table_manager*> &required_tables,
+	const std::vector<expr_node_t*> &exprs,
+	const std::vector<std::string> &expr_names)
+{
+	std::puts("========= SELECT (aggregate) =========");
+	if(exprs.size() != 1)
+	{
+		std::fprintf(stderr, "[Error] Support only for one select expression for aggregate select.");
+		return;
+	}
+
+	// check aggregate type
+	expr_node_t *expr = exprs[0];
+	int val_i = 0;
+	float val_f = 0;
+	if(expr->op == OPERATOR_MIN)
+	{
+		val_i = std::numeric_limits<int>::max();
+		val_f = std::numeric_limits<float>::max();
+	} else if(expr->op == OPERATOR_MAX) {
+		val_i = std::numeric_limits<int>::min();
+		val_f = std::numeric_limits<float>::min();
+	}
+
+	term_type_t agg_type = TERM_NONE;
+
+	int counter = 0;
+	iterate(required_tables, info->where,
+		[&](const std::vector<table_manager*> &,
+			const std::vector<record_manager*> &,
+			const std::vector<int>& )
+		{
+			if(expr->op != OPERATOR_COUNT)
+			{
+				expression ret;
+				try {
+					ret = expression::eval(expr->left);
+				} catch (const char *e) {
+					std::fprintf(stderr, "%s\n", e);
+					return false;
+				}
+
+				agg_type = ret.type;
+				if(ret.type == TERM_FLOAT)
+				{
+					switch(expr->op)
+					{
+						case OPERATOR_SUM:
+						case OPERATOR_AVG:
+							val_f += ret.val_f;
+							break;
+						case OPERATOR_MIN:
+							if(ret.val_f < val_f)
+								val_f = ret.val_f;
+							break;
+						case OPERATOR_MAX:
+							if(ret.val_f > val_f)
+								val_f = ret.val_f;
+							break;
+						default: break;
+					}
+				} else {
+					switch(expr->op)
+					{
+						case OPERATOR_SUM:
+						case OPERATOR_AVG:
+							val_i += ret.val_i;
+							break;
+						case OPERATOR_MIN:
+							if(ret.val_i < val_i)
+								val_i = ret.val_i;
+							break;
+						case OPERATOR_MAX:
+							if(ret.val_i > val_i)
+								val_i = ret.val_i;
+							break;
+						default: break;
+					}
+				}
+			}
+
+			++counter;
+			return true;
+		}
+	);
+
+	if(expr->op == OPERATOR_COUNT)
+	{
+		std::printf("%s\t = %d\n", expr_names[0].c_str(), counter);
+	} else {
+		if(agg_type != TERM_FLOAT && agg_type != TERM_INT)
+		{
+			std::fprintf(stderr, "[Error] Aggregate only support for int and float type.\n");
+			return;
+		}
+
+		if(expr->op == OPERATOR_AVG)
+		{
+			if(agg_type == TERM_INT)
+				val_f = double(val_i) / counter;
+			else val_f /= counter;
+			std::printf("%s\t = %f\n", expr_names[0].c_str(), val_f);
+		} else if(agg_type == TERM_FLOAT) {
+			std::printf("%s\t = %f\n", expr_names[0].c_str(), val_f);
+		} else if(agg_type == TERM_INT) {
+			std::printf("%s\t = %d\n", expr_names[0].c_str(), val_i);
+		}
+	}
+
 	std::printf("[Info] %d row(s) selected.\n", counter);
 }
 

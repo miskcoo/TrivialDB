@@ -32,6 +32,12 @@ public:
 
 	void show_table(const char *table_name);
 
+	void select_rows_aggregate(
+		const select_info_t *info,
+		const std::vector<table_manager*> &required_tables,
+		const std::vector<expr_node_t*> &exprs,
+		const std::vector<std::string> &expr_names);
+
 public:
 	bool assert_db_open();
 	void cache_record(table_manager *tm, record_manager *rm);

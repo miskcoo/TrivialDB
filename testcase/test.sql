@@ -16,16 +16,20 @@ INSERT INTO Persons VALUES
 
 SELECT PersonID FROM Persons;
 UPDATE Persons SET LastName = 'Hilbert' WHERE PersonID = -238;
-SELECT PersonID FROM Persons;
+SELECT * FROM Persons;
 INSERT INTO Persons VALUES 
 	(100001, 'Zarisk', 'C', 'Unknown', 'US'),
 	(100002, 'Wasserstein', 'D', 'Unknwon.', 'EU');
 DELETE FROM Persons WHERE PersonID < 0;
-SELECT PersonID FROM Persons;
+SELECT * FROM Persons;
 DELETE FROM Persons;
-SELECT PersonID FROM Persons;
+SELECT * FROM Persons;
 INSERT INTO Persons (LastName, PersonID) VALUES 
 	('Zarisk', 10),
 	('Wasserstein', 20);
+SELECT PersonID FROM Persons;
+SELECT COUNT(*) FROM Persons;
+SELECT SUM(PersonID) FROM Persons;
+SELECT AVG(PersonID) FROM Persons;
 SELECT PersonID FROM Persons;
 EXIT;

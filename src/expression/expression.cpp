@@ -1,5 +1,6 @@
 #include <cassert>
 #include <unordered_map>
+#include <sstream>
 #include <string>
 #include "expression.h"
 #include "../utils/comparer.h"
@@ -339,5 +340,92 @@ expression expression::eval(const expr_node_t *expr)
 		default:
 			throw "[Error] unknown type.";
 			return expression();
+	}
+}
+
+bool expression::is_aggregate(const expr_node_t* expr)
+{
+	return expr->op == OPERATOR_COUNT
+		|| expr->op == OPERATOR_SUM
+		|| expr->op == OPERATOR_AVG
+		|| expr->op == OPERATOR_MIN
+		|| expr->op == OPERATOR_MAX;
+}
+
+std::string expression::to_string(const expr_node_t *expr)
+{
+	if(!expr) return "*";
+	if(expr->op == OPERATOR_NONE)
+	{
+		// terminator
+		switch(expr->term_type)
+		{
+			case TERM_INT: {
+				std::ostringstream ss;
+				ss << expr->val_f;
+				return ss.str(); }
+			case TERM_FLOAT: {
+				std::ostringstream ss;
+				ss << expr->val_i;
+				return ss.str(); }
+			case TERM_BOOL:
+				return expr->val_b ? "TRUE" : "FALSE";
+			case TERM_STRING:
+				return "'" + std::string(expr->val_s) + "'";
+			case TERM_COLUMN_REF:
+				if(expr->column_ref->table)
+				{
+					return std::string(expr->column_ref->table)
+						+ "." + expr->column_ref->column;
+				} else {
+					return expr->column_ref->column;
+				}
+			case TERM_NULL:
+				return "NULL";
+			default:
+				return "";
+		}
+	} else {
+		// non-terminator
+		std::string str = to_string(expr->left);
+		if(expr->op & OPERATOR_UNARY)
+		{
+			switch(expr->op)
+			{
+				case OPERATOR_SUM:
+					return "SUM(" + str + ")";
+				case OPERATOR_AVG:
+					return "AVG(" + str + ")";
+				case OPERATOR_MIN:
+					return "MIN(" + str + ")";
+				case OPERATOR_MAX:
+					return "MAX(" + str + ")";
+				case OPERATOR_COUNT:
+					return "COUNT(" + str + ")";
+				default:
+					return str;
+			}
+		}
+
+		switch(expr->op)
+		{
+			case OPERATOR_ADD:
+				str += '+';
+				break;
+			case OPERATOR_MINUS:
+				str += '-';
+				break;
+			case OPERATOR_DIV:
+				str += '/';
+				break;
+			case OPERATOR_MUL:
+				str += '*';
+				break;
+			default:
+				str += ' ';
+				break;
+		}
+
+		return str + to_string(expr->right);
 	}
 }

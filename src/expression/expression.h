@@ -16,6 +16,8 @@ struct expression
 	term_type_t type;
 
 	static expression eval(const expr_node_t *expr);
+	static std::string to_string(const expr_node_t *expr);
+	static bool is_aggregate(const expr_node_t *expr);
 	static void cache_clear();
 	static void cache_clear(const char *table);
 	static void cache_column(const char *table, const char *col, const expression &expr);
