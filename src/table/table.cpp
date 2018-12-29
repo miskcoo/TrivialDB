@@ -208,7 +208,7 @@ bool table_manager::set_temp_record(int col, const void *data)
 {
 	if(data == nullptr)
 	{
-		*tmp_null_mark |= header.flag_notnull & (1u << col);
+		*tmp_null_mark |= 1u << col;
 		return true;
 	}
 
@@ -233,7 +233,8 @@ void table_manager::init_temp_record()
 {
 	// TODO: add default values
 	std::memset(tmp_record, 0, tmp_record_size);
-	((int*)tmp_record)[1] = (1u << header.col_num) - 1;   // null mark
+	*tmp_null_mark = (1u << header.col_num) - 1;
+	*tmp_null_mark &= ~(1u << header.main_index);
 }
 
 int table_manager::insert_record()
@@ -259,7 +260,9 @@ int table_manager::insert_record()
 		if(i != header.main_index && ((1u << i) & header.flag_indexed))
 		{
 			assert(indices[i]);
-			indices[i]->insert(tmp_record + header.col_offset[i], *rid);
+			if(*tmp_null_mark & (1u << i))
+				indices[i]->insert(nullptr, *rid);
+			else indices[i]->insert(tmp_record + header.col_offset[i], *rid);
 		}
 	}
 
@@ -284,13 +287,12 @@ bool table_manager::remove_record(int rid)
 			if(i != header.main_index && ((1u << i) & header.flag_indexed))
 			{
 				assert(indices[i]);
-				// TODO: solve NULL case
-				//if(!((null_mark >> i) & 1))
-				//{
+				if(!((null_mark >> i) & 1))
+				{
 					rm.seek(header.col_offset[i]);
 					rm.read(tmp_index, header.col_length[i]);
-				//}
-				indices[i]->erase(tmp_index, rid);
+					indices[i]->erase(tmp_index, rid);
+				} else indices[i]->erase(nullptr, rid);
 			}
 		}
 		btr->erase(rid);
@@ -328,23 +330,28 @@ void table_manager::dump_record(int rid)
 
 void table_manager::dump_record(record_manager *rm)
 {
-	char *buf = tmp_cache;
+	rm->seek(0);
+	rm->read(tmp_cache, tmp_record_size);
+	int null_mark = ((int*)tmp_cache)[1];
 	for(int i = 0; i < header.col_num; ++i)
 	{
 		std::printf("%s.%s\t= ", header.table_name, header.col_name[i]);
-		rm->seek(header.col_offset[i]);
+		if(null_mark & (1u << i))
+		{
+			std::puts("NULL");
+			continue;
+		}
+
+		char *buf = tmp_cache + header.col_offset[i];
 		switch(header.col_type[i])
 		{
 			case COL_TYPE_INT:
-				rm->read(buf, 4);
 				std::printf("%d\n", *(int*)buf);
 				break;
 			case COL_TYPE_FLOAT:
-				rm->read(buf, 4);
 				std::printf("%f\n", *(float*)buf);
 				break;
 			case COL_TYPE_VARCHAR:
-				rm->read(buf, header.col_length[i]);
 				std::printf("%s\n", buf);
 				break;
 			default:
@@ -360,7 +367,15 @@ bool table_manager::modify_record(int rid, int col, const void* data)
 	assert(col >= 0 && col < header.col_num);
 
 	// record must be cached by cache_record()
-	std::memcpy(tmp_cache + header.col_offset[col], data, header.col_length[col]);
+	int is_old_record_null = ((int*)tmp_cache)[1] & (1u << col);
+	if(data == nullptr)
+	{
+		((int*)tmp_cache)[1] |= 1u << col;
+	} else {
+		std::memcpy(tmp_record, tmp_cache + header.col_offset[col], header.col_length[col]);
+		std::memcpy(tmp_cache + header.col_offset[col], data, header.col_length[col]);
+	}
+
 	expression::cache_replace(
 		header.table_name,
 		header.col_name[col], 
@@ -370,14 +385,21 @@ bool table_manager::modify_record(int rid, int col, const void* data)
 	if(!check_constraints(tmp_cache))
 		return false;
 
-	rec.seek(header.col_offset[col]);
-	rec.read(tmp_index, header.col_length[col]);
-	rec.seek(header.col_offset[col]);
-	rec.write(data, header.col_length[col]);
+	if(data != nullptr)
+	{
+		rec.seek(header.col_offset[col]);
+		rec.write(data, header.col_length[col]);
+	} else {
+		rec.seek(4);
+		rec.write(tmp_cache + 4, 4);
+	}
+
 	if(indices[col] != nullptr)
 	{
 		// update index
-		indices[col]->erase(tmp_index, rid);
+		if(is_old_record_null)
+			indices[col]->erase(nullptr, rid);
+		else indices[col]->erase(tmp_record, rid);
 		indices[col]->insert((const char*)data, rid);
 	}
 	return true;

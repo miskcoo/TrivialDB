@@ -156,6 +156,10 @@ inline expression eval_float_operands(operator_type_t op, float a, float b)
 			ret.val_b = false;
 			ret.type  = TERM_BOOL;
 			break;
+		case OPERATOR_NOTNULL:
+			ret.val_b = true;
+			ret.type  = TERM_BOOL;
+			break;
 		default:
 			THROW_UNSUPPORTED_OPERATOR;
 			break;
@@ -219,6 +223,10 @@ inline expression eval_int_operands(operator_type_t op, int a, int b)
 			ret.val_b = false;
 			ret.type  = TERM_BOOL;
 			break;
+		case OPERATOR_NOTNULL:
+			ret.val_b = true;
+			ret.type  = TERM_BOOL;
+			break;
 		default:
 			THROW_UNSUPPORTED_OPERATOR;
 			break;
@@ -253,6 +261,10 @@ inline expression eval_bool_operands(operator_type_t op, bool a, bool b)
 			ret.val_b = false;
 			ret.type  = TERM_BOOL;
 			break;
+		case OPERATOR_NOTNULL:
+			ret.val_b = true;
+			ret.type  = TERM_BOOL;
+			break;
 		default:
 			THROW_UNSUPPORTED_OPERATOR;
 			break;
@@ -283,6 +295,10 @@ inline expression eval_string_operands(operator_type_t op, const char* a, const 
 			ret.val_b = false;
 			ret.type  = TERM_BOOL;
 			break;
+		case OPERATOR_NOTNULL:
+			ret.val_b = true;
+			ret.type  = TERM_BOOL;
+			break;
 		default:
 			THROW_UNSUPPORTED_OPERATOR;
 			break;
@@ -299,6 +315,10 @@ inline expression eval_null_operands(operator_type_t op)
 		/* compare */
 		case OPERATOR_ISNULL:
 			ret.val_b = true;
+			ret.type  = TERM_BOOL;
+			break;
+		case OPERATOR_NOTNULL:
+			ret.val_b = false;
 			ret.type  = TERM_BOOL;
 			break;
 		default:

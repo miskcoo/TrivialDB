@@ -364,6 +364,11 @@ cond_term  : expr compare_op expr {
 				$$->left  = $1;
 				$$->op    = OPERATOR_ISNULL;
 		   }
+		   | expr IS NOT NULL_TOKEN {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->op    = OPERATOR_NOTNULL;
+		   }
 		   | NOT cond_term {
 		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
 				$$->left  = $2;

@@ -398,6 +398,9 @@ void dbms::select_rows(const select_info_t *info)
 					case TERM_BOOL:
 						std::printf("%s\n", ret.val_b ? "TRUE" : "FALSE");
 						break;
+					case TERM_NULL:
+						std::printf("NULL\n");
+						break;
 					default:
 						debug_puts("[Error] Data type not supported!");
 				}
@@ -590,10 +593,10 @@ void dbms::insert_rows(const insert_info_t *info)
 		}
 	}
 
-	tb->init_temp_record();
 	int count_succ = 0, count_fail = 0;
 	for(linked_list_t *list = info->values; list; list = list->next)
 	{
+		tb->init_temp_record();
 		linked_list_t *expr_list = (linked_list_t*)list->data;
 		unsigned val_num = 0;
 		for(linked_list_t *i = expr_list; i; i = i->next, ++val_num);

@@ -27,7 +27,7 @@ SELECT * FROM Persons;
 INSERT INTO Persons (LastName, PersonID) VALUES 
 	('Zarisk', 10),
 	('Wasserstein', 20);
-SELECT PersonID FROM Persons;
+SELECT * FROM Persons;
 SELECT COUNT(*) FROM Persons;
 SELECT SUM(PersonID) FROM Persons;
 SELECT AVG(PersonID) FROM Persons;

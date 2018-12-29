@@ -54,6 +54,7 @@ typedef enum {
 	/* unary */
 	OPERATOR_NEGATE = OPERATOR_UNARY,
 	OPERATOR_ISNULL,
+	OPERATOR_NOTNULL,
 	OPERATOR_NOT,
 	/* aggregate */
 	OPERATOR_SUM,
