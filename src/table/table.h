@@ -72,6 +72,11 @@ public:
 	record_manager get_record_ptr(int rid, bool dirty=false);
 	void dump_record(int rid);
 	void dump_record(record_manager *rm);
+
+	bool check_constraints(const char *buf);
+	bool check_unique(const char *buf, int col);
+	bool check_primary(const char *buf);
+	bool check_notnull(const char *buf);
 };
 
 #endif

@@ -37,10 +37,9 @@ record_manager table_manager::open_record_from_index_lower_bound(
 void table_manager::cache_record(record_manager *rm)
 {
 	expression::cache_clear(header.table_name);
-	int null_mark;
-	rm->seek(4);
-	rm->read(&null_mark, 4);
-	((int*)tmp_cache)[1] = null_mark;
+	int null_mark = ((int*)tmp_cache)[1];
+	rm->seek(0);
+	rm->read(tmp_cache, tmp_record_size);
 	for(int i = 0; i < header.col_num; ++i)
 	{
 		if(i == header.main_index && header.is_main_index_additional)
@@ -48,11 +47,7 @@ void table_manager::cache_record(record_manager *rm)
 
 		char *buf = nullptr;
 		if(!((null_mark >> i) & 1))
-		{
 			buf = tmp_cache + header.col_offset[i];
-			rm->seek(header.col_offset[i]);
-			rm->read(buf, header.col_length[i]);
-		}
 
 		expression::cache_column(
 			header.table_name,
@@ -220,7 +215,10 @@ int table_manager::insert_record()
 	int *rid = (int*)tmp_record;
 	if(header.is_main_index_additional)
 		*rid = header.auto_inc;
-	// TODO: validate record
+
+	if(!check_constraints(tmp_record))
+		return false;
+
 	btr->insert(*rid, tmp_record, tmp_record_size);
 
 	for(int i = 0; i < header.col_num; ++i)
@@ -327,7 +325,12 @@ bool table_manager::modify_record(int rid, int col, const void* data)
 	record_manager rec = get_record_ptr(rid, true);
 	if(!rec.valid()) return false;
 	assert(col >= 0 && col < header.col_num);
-	// TODO: check validation
+
+	// record must be cached by cache_record()
+	std::memcpy(tmp_cache + header.col_offset[col], data, header.col_length[col]);
+	if(!check_constraints(tmp_cache))
+		return false;
+
 	rec.seek(header.col_offset[col]);
 	rec.read(tmp_index, header.col_length[col]);
 	rec.seek(header.col_offset[col]);
@@ -377,4 +380,103 @@ void table_manager::create_index(const char *col_name)
 
 		// TODO: add existed data.
 	}
+}
+
+bool table_manager::check_constraints(const char *buf)
+{
+	if(!check_notnull(buf))
+		return false;
+
+	int main_index_col = 1u << header.main_index;
+	if(!(header.flag_primary & main_index_col))
+	{
+		// primary key is not __rowid__
+		if(!check_primary(buf))
+			return false;
+	}
+
+	int unique_to_check = header.flag_unique & ~main_index_col;
+	for(int i = 0; i != header.col_num; ++i)
+	{
+		if(unique_to_check & (1u << i))
+			if(!check_unique(buf, i))
+			{
+				std::fprintf(stderr, "[Error] Record not unique!\n");
+				return false;
+			}
+	}
+
+	return true;
+}
+
+bool table_manager::check_unique(const char *buf, int col)
+{
+	assert(indices[col]);
+	auto it = indices[col]->get_iterator_lower_bound(buf + header.col_offset[col]);
+	if(it.is_end())
+		return true;
+
+	int dest_rid;
+	record_manager r = open_record_from_index_lower_bound(it.get(), &dest_rid);
+	if(dest_rid == *(int*)buf)
+	{
+		it.next();
+		if(it.is_end()) return true;
+		r = open_record_from_index_lower_bound(it.get(), &dest_rid);
+	}
+
+	// compare values 
+	r.seek(header.col_offset[col]);
+	r.read(tmp_index, header.col_length[col]);
+	auto comparer = get_index_comparer(header.col_type[col]);
+	return comparer(tmp_index, buf + header.col_offset[col]) != 0;
+}
+
+bool table_manager::check_primary(const char *buf)
+{
+	int first_primary = 0;
+	while(!(header.flag_primary & (1u << first_primary)))
+		++first_primary;
+
+	assert(indices[first_primary]);
+	auto it = indices[first_primary]->get_iterator_lower_bound(
+			buf + header.col_offset[first_primary]);
+
+	for(; !it.is_end(); it.next())
+	{
+		int rid;
+		record_manager rm = open_record_from_index_lower_bound(it.get(), &rid);
+		if(rid == *(int*)buf)
+			continue;
+
+		int first_not_conflicted = -1;
+		for(int i = 0; i != header.col_num; ++i)
+		{
+			if(!(header.flag_primary & (1u << i)))
+				continue;
+			rm.seek(header.col_offset[i]);
+			rm.read(tmp_index, header.col_length[i]);
+			auto comparer = get_index_comparer(header.col_type[i]);
+			if(comparer(tmp_index, buf + header.col_offset[i]) != 0)
+			{
+				first_not_conflicted = i;
+				break;
+			}
+		}
+
+		if(first_not_conflicted == -1)
+		{
+			std::fprintf(stderr, "[Error] Primary key confliction with __rowid__ = %d\n", rid);
+			return false;
+		} else if(first_not_conflicted == first_primary) {
+			return true;
+		}
+	}
+
+	return true;
+}
+
+bool table_manager::check_notnull(const char *buf)
+{
+	return true;
 }

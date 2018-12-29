@@ -87,17 +87,19 @@ bool fill_table_header(table_header_t *header, const table_def_t *table)
 	header->flag_indexed |= 1 << index;
 	if(!header->flag_primary)
 		header->flag_primary |= 1 << index;
-	header->flag_unique |= 1 << index;
-	header->flag_unique |= header->flag_primary;
-	header->flag_indexed |= header->flag_primary;
+	// add index to unique constrainted columns
+	header->flag_indexed |= header->flag_unique;
+	// add index to the first primary key column
+	
+	int first_primary = 0;
+	for(; !(header->flag_primary & (1u << first_primary)); ++first_primary);
+	header->flag_indexed |= 1u << first_primary;
 	header->auto_inc = 1;
 
-	/* check constraint availability */
-	if(header->flag_primary != (header->flag_primary & -header->flag_primary))
-	{
-		std::fprintf(stderr, "[Error] Find two or more primary key.\n");
-		return false;
-	}
+	header->primary_key_num = 0;
+	for(int i = 0; i != header->col_num; ++i)
+		if(header->flag_primary & (1u << i))
+			++header->primary_key_num;
 
 	return true;
 }

@@ -10,7 +10,7 @@ struct table_header_t
 	// main index for this table
 	uint8_t main_index, is_main_index_additional;
 
-	int records_num;
+	int records_num, primary_key_num;
 	uint32_t flag_notnull, flag_primary, flag_indexed, flag_unique;
 	uint8_t col_type[MAX_COL_NUM];
 

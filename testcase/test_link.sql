@@ -16,6 +16,10 @@ CREATE TABLE Conn2 (
 );
 CREATE INDEX Persons(Name);
 
+SHOW TABLE Persons;
+SHOW TABLE Conn;
+SHOW TABLE Conn2;
+
 INSERT INTO Conn VALUES 
 	(9, 'Conn_9'),
 	(19, 'Conn_19'),
