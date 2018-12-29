@@ -389,7 +389,18 @@ void dbms::insert_rows(const insert_info_t *info)
 		for(int i = 0; i < tb->get_column_num() - 1; ++i)
 			cols_id.push_back(i);
 	} else {
-		// TODO: parse column infos
+		for(linked_list_t *link_ptr = info->columns; link_ptr; link_ptr = link_ptr->next)
+		{
+			column_ref_t *column = (column_ref_t*)link_ptr->data;
+			int cid = tb->lookup_column(column->column);
+			if(cid < 0)
+			{
+				std::fprintf(stderr, "[Error] No column `%s` in table `%s`.\n",
+					column->column, tb->get_table_name());
+				return;
+			}
+			cols_id.push_back(cid);
+		}
 	}
 
 	tb->init_temp_record();

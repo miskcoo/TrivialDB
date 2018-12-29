@@ -317,8 +317,9 @@ btree<KeyType, Comparer, Copier>::erase(int now, key_t key)
 
 		page.erase(pos);
 		auto ret = erase_try_merge<leaf_page>(now, addr);
-		return { true, ret.merged_left, ret.merged_right,
-			ret.merged_pid, copy_to_temp(page.get_key(page.size() - 1)) };
+
+		return { true, ret.merged_left, ret.merged_right, ret.merged_pid,
+			now == root_page_id ? 0 : copy_to_temp(page.get_key(page.size() - 1)) };
 	}
 }
 

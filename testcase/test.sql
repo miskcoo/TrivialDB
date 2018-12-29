@@ -23,4 +23,9 @@ INSERT INTO Persons VALUES
 DELETE FROM Persons WHERE PersonID < 0;
 SELECT PersonID FROM Persons;
 DELETE FROM Persons;
+SELECT PersonID FROM Persons;
+INSERT INTO Persons (LastName, PersonID) VALUES 
+	('Zarisk', 10),
+	('Wasserstein', 20);
+SELECT PersonID FROM Persons;
 EXIT;
