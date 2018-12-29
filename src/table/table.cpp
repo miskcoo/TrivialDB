@@ -36,10 +36,15 @@ record_manager table_manager::open_record_from_index_lower_bound(
 
 void table_manager::cache_record(record_manager *rm)
 {
-	expression::cache_clear(header.table_name);
-	int null_mark = ((int*)tmp_cache)[1];
 	rm->seek(0);
 	rm->read(tmp_cache, tmp_record_size);
+	cache_record_from_tmp_cache();
+}
+
+void table_manager::cache_record_from_tmp_cache()
+{
+	expression::cache_clear(header.table_name);
+	int null_mark = ((int*)tmp_cache)[1];
 	for(int i = 0; i < header.col_num; ++i)
 	{
 		if(i == header.main_index && header.is_main_index_additional)
@@ -96,6 +101,25 @@ void table_manager::free_indices()
 	}
 }
 
+void table_manager::free_check_constraints()
+{
+	for(int i = 0; i != header.check_constaint_num; ++i)
+	{
+		expression::free_exprnode(check_conds[i]);
+		check_conds[i] = nullptr;
+	}
+}
+
+void table_manager::load_check_constraints()
+{
+	std::memset(check_conds, 0, sizeof(check_conds));
+	for(int i = 0; i != header.check_constaint_num; ++i)
+	{
+		std::istringstream is(header.check_constaints[i]);
+		check_conds[i] = expression::load_exprnode(is);
+	}
+}
+
 bool table_manager::open(const char *table_name)
 {
 	if(is_open) return false;
@@ -110,6 +134,7 @@ bool table_manager::open(const char *table_name)
 			pg.get(), header.index_root[header.main_index]);
 	allocate_temp_record();
 	load_indices();
+	load_check_constraints();
 
 	return is_open = true;
 }
@@ -127,6 +152,7 @@ bool table_manager::create(const char *table_name, const table_header_t *header)
 	this->header.index_root[header->main_index] = btr->get_root_page_id();
 	allocate_temp_record();
 	load_indices();
+	load_check_constraints();
 
 	return is_open = true;
 }
@@ -139,6 +165,7 @@ void table_manager::close()
 
 	header.index_root[header.main_index] = btr->get_root_page_id();
 	free_indices();
+	free_check_constraints();
 
 	std::ofstream ofs(thead, std::ios::binary);
 	ofs.write((char*)&header, sizeof(header));
@@ -215,6 +242,12 @@ int table_manager::insert_record()
 	int *rid = (int*)tmp_record;
 	if(header.is_main_index_additional)
 		*rid = header.auto_inc;
+
+	if(header.check_constaint_num != 0)
+	{
+		std::memcpy(tmp_cache, tmp_record, tmp_record_size);
+		cache_record_from_tmp_cache();
+	}
 
 	if(!check_constraints(tmp_record))
 		return false;
@@ -328,6 +361,12 @@ bool table_manager::modify_record(int rid, int col, const void* data)
 
 	// record must be cached by cache_record()
 	std::memcpy(tmp_cache + header.col_offset[col], data, header.col_length[col]);
+	expression::cache_replace(
+		header.table_name,
+		header.col_name[col], 
+		typecast::column_to_expr((char*)data, header.col_type[col])
+	);
+
 	if(!check_constraints(tmp_cache))
 		return false;
 
@@ -406,6 +445,15 @@ bool table_manager::check_constraints(const char *buf)
 			}
 	}
 
+	for(int i = 0; i != header.check_constaint_num; ++i)
+	{
+		if(!check_value_constraint(check_conds[i]))
+		{
+			std::fprintf(stderr, "[Error] Value constraint broken!\n");
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -479,4 +527,14 @@ bool table_manager::check_primary(const char *buf)
 bool table_manager::check_notnull(const char *buf)
 {
 	return true;
+}
+
+bool table_manager::check_value_constraint(const expr_node_t *expr)
+{
+	try {
+		return typecast::expr_to_bool(expression::eval(expr));
+	} catch(const char *msg) {
+		std::puts(msg);
+		return false;
+	}
 }

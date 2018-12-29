@@ -10,7 +10,7 @@ struct table_header_t
 	// main index for this table
 	uint8_t main_index, is_main_index_additional;
 
-	int records_num, primary_key_num;
+	int records_num, primary_key_num, check_constaint_num;
 	uint32_t flag_notnull, flag_primary, flag_indexed, flag_unique;
 	uint8_t col_type[MAX_COL_NUM];
 
@@ -23,6 +23,7 @@ struct table_header_t
 	// auto increment counter
 	int64_t auto_inc;
 
+	char check_constaints[MAX_CHECK_CONSTRAINT_NUM][MAX_CHECK_CONSTRAINT_LEN];
 	char col_name[MAX_COL_NUM][MAX_NAME_LEN];
 	char table_name[MAX_NAME_LEN];
 

@@ -31,5 +31,5 @@ SELECT PersonID FROM Persons;
 SELECT COUNT(*) FROM Persons;
 SELECT SUM(PersonID) FROM Persons;
 SELECT AVG(PersonID) FROM Persons;
-SELECT PersonID FROM Persons;
+SELECT PersonID, LastName FROM Persons;
 EXIT;

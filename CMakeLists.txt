@@ -17,6 +17,7 @@ set(SOURCE
 	src/database/database.cpp
 	src/database/dbms.cpp
 	src/expression/expression.cpp
+	src/expression/serialization.cpp
 	src/index/index.cpp
 )
 

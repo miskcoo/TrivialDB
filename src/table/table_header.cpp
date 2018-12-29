@@ -1,6 +1,8 @@
 #include <cstring>
 #include <cstdio>
+#include <sstream>
 #include "table_header.h"
+#include "../expression/expression.h"
 #include "../parser/defs.h"
 
 bool fill_table_header(table_header_t *header, const table_def_t *table)
@@ -58,6 +60,7 @@ bool fill_table_header(table_header_t *header, const table_def_t *table)
 	{
 		int cid;
 		table_constraint_t *constraint = (table_constraint_t*)link_ptr->data;
+		std::ostringstream os;
 		switch(constraint->type)
 		{
 			case TABLE_CONSTRAINT_UNIQUE:
@@ -69,6 +72,22 @@ bool fill_table_header(table_header_t *header, const table_def_t *table)
 				cid = lookup_column(constraint->column_ref->column);
 				if(cid < 0) return false;
 				header->flag_primary |= 1 << cid;
+				break;
+			case TABLE_CONSTRAINT_CHECK:
+				if(header->check_constaint_num > MAX_CHECK_CONSTRAINT_NUM)
+				{
+					std::fprintf(stderr, "[Error] Too many check constraints.\n");
+					return false;
+				}
+
+				expression::dump_exprnode(os, constraint->check_cond);
+				if(os.str().size() >= MAX_CHECK_CONSTRAINT_LEN)
+				{
+					std::fprintf(stderr, "[Error] Check constraint too long.\n");
+					return false;
+				}
+
+				std::strcpy(header->check_constaints[header->check_constaint_num++], os.str().c_str());
 				break;
 			default:
 				std::fprintf(stderr, "[Error] Unsupported constraint.\n");

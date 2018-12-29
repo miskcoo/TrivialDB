@@ -263,6 +263,11 @@ table_extra_option : PRIMARY KEY '(' column_ref ')' {
 					$$->type = TABLE_CONSTRAINT_UNIQUE;
 					$$->column_ref = $3;
 				   }
+				   | CHECK '(' condition ')' {
+				   	$$ = (table_constraint_t*)malloc(sizeof(table_constraint_t));
+					$$->type = TABLE_CONSTRAINT_CHECK;
+					$$->check_cond = $3;
+				   }
 				   ;
 
 column_ref   : IDENTIFIER {

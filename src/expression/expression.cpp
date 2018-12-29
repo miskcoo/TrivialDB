@@ -29,6 +29,16 @@ void expression::cache_clear(const char *table)
 	}
 }
 
+void expression::cache_replace(const char *table, const char *col, expression expr)
+{
+	auto range = __expr_column_cache.equal_range(col);
+	for(auto it = range.first; it != range.second; ++it)
+	{
+		if(it->second.first == table)
+			it->second.second = expr;
+	}
+}
+
 void expression::cache_column(const char *table, const char *col, const expression &expr)
 {
 	__expr_column_cache.insert(
@@ -428,4 +438,8 @@ std::string expression::to_string(const expr_node_t *expr)
 
 		return str + to_string(expr->right);
 	}
+}
+
+void expression::free_exprnode(expr_node_t *expr)
+{
 }

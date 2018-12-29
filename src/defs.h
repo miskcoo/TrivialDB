@@ -26,6 +26,8 @@
 /* table info */
 #define MAX_COL_NUM     32
 #define MAX_NAME_LEN    64
+#define MAX_CHECK_CONSTRAINT_NUM  16
+#define MAX_CHECK_CONSTRAINT_LEN  1024
 
 #define COL_FLAG_PRIMARY   1
 #define COL_FLAG_INDEX     2

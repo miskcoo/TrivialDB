@@ -89,11 +89,6 @@ typedef struct column_ref_t {
 	char *column;
 } column_ref_t;
 
-typedef struct table_constraint_t {
-	int type;
-	column_ref_t *column_ref;
-} table_constraint_t;
-
 typedef struct table_def_t {
 	char *name;
 	struct field_item_t *fields;
@@ -118,6 +113,14 @@ typedef struct expr_node_t {
 	operator_type_t op;
 	term_type_t term_type;
 } expr_node_t;
+
+typedef struct table_constraint_t {
+	int type;
+	union {
+		column_ref_t *column_ref;
+		expr_node_t *check_cond;
+	};
+} table_constraint_t;
 
 typedef struct delete_info_t {
 	char *table;

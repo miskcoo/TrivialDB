@@ -17,6 +17,7 @@
  *  | rid (main index) | notnull | fixed col 1 | ... | fixed col n |
  */
 
+struct expr_node_t;
 class table_manager
 {
 	bool is_open;
@@ -25,6 +26,7 @@ class table_manager
 	std::shared_ptr<pager> pg;
 	std::string tname;
 	index_manager *indices[MAX_COL_NUM];
+	expr_node_t *check_conds[MAX_CHECK_CONSTRAINT_NUM];
 	const char *error_msg;
 
 	int tmp_record_size;
@@ -34,6 +36,8 @@ class table_manager
 	void allocate_temp_record();
 	void load_indices();
 	void free_indices();
+	void load_check_constraints();
+	void free_check_constraints();
 public:
 	table_manager() : is_open(false), tmp_record(nullptr) { }
 	~table_manager() { if(is_open) close(); }
@@ -77,6 +81,8 @@ public:
 	bool check_unique(const char *buf, int col);
 	bool check_primary(const char *buf);
 	bool check_notnull(const char *buf);
+	bool check_value_constraint(const expr_node_t *expr);
+	void cache_record_from_tmp_cache();
 };
 
 #endif
