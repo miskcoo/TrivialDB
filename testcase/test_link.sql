@@ -36,5 +36,9 @@ INSERT INTO Persons VALUES
 
 SELECT * FROM Persons, Conn, Conn2 WHERE Conn2.ConnID = Conn.ConnID AND Conn.ConnID = Persons.PersonID;
 SELECT * FROM Persons, Conn WHERE Persons.PersonID = Conn.ConnID;
+DELETE FROM Conn WHERE ConnID = 8;
+SELECT * FROM Persons, Conn WHERE Persons.PersonID = Conn.ConnID;
+UPDATE Conn SET ConnID = 8 WHERE ConnID = 19;
+SELECT * FROM Persons, Conn WHERE Persons.PersonID = Conn.ConnID;
 
 EXIT;

@@ -152,8 +152,10 @@ void table_manager::close()
 	pg = nullptr;
 	delete []tmp_record;
 	delete []tmp_cache;
+	delete []tmp_index;
 	tmp_cache = nullptr;
 	tmp_record = nullptr;
+	tmp_index = nullptr;
 	is_open = false;
 }
 
@@ -176,6 +178,7 @@ void table_manager::allocate_temp_record()
 		tot_len += header.col_length[i];
 	tmp_record = new char[tmp_record_size = tot_len];
 	tmp_cache = new char[tot_len];
+	tmp_index = new char[tot_len];
 	tmp_null_mark = reinterpret_cast<int*>(tmp_record + 4);
 }
 
@@ -208,6 +211,7 @@ void table_manager::init_temp_record()
 {
 	// TODO: add default values
 	std::memset(tmp_record, 0, tmp_record_size);
+	((int*)tmp_record)[1] = (1u << header.col_num) - 1;   // null mark
 }
 
 int table_manager::insert_record()
@@ -238,8 +242,29 @@ int table_manager::insert_record()
 
 bool table_manager::remove_record(int rid)
 {
-	// TODO: remove corresponding index
-	return btr->erase(rid);
+	record_manager rm = get_record_ptr(rid);
+	if(rm.valid())
+	{
+		int null_mark;
+		rm.seek(4);
+		rm.read(&null_mark, 4);
+		for(int i = 0; i < header.col_num; ++i)
+		{
+			if(i != header.main_index && ((1u << i) & header.flag_indexed))
+			{
+				assert(indices[i]);
+				// TODO: solve NULL case
+				//if(!((null_mark >> i) & 1))
+				//{
+					rm.seek(header.col_offset[i]);
+					rm.read(tmp_index, header.col_length[i]);
+				//}
+				indices[i]->erase(tmp_index, rid);
+			}
+		}
+		btr->erase(rid);
+		return true;
+	} else return false;
 }
 
 btree_iterator<int_btree::leaf_page> table_manager::get_record_iterator_lower_bound(int rid)
@@ -304,8 +329,15 @@ bool table_manager::modify_record(int rid, int col, const void* data)
 	assert(col >= 0 && col < header.col_num);
 	// TODO: check validation
 	rec.seek(header.col_offset[col]);
+	rec.read(tmp_index, header.col_length[col]);
+	rec.seek(header.col_offset[col]);
 	rec.write(data, header.col_length[col]);
-	// TODO: update index
+	if(indices[col] != nullptr)
+	{
+		// update index
+		indices[col]->erase(tmp_index, rid);
+		indices[col]->insert((const char*)data, rid);
+	}
 	return true;
 }
 

@@ -29,7 +29,7 @@ class table_manager
 
 	int tmp_record_size;
 	char *tmp_record;
-	char *tmp_cache;
+	char *tmp_cache, *tmp_index;
 	int *tmp_null_mark;
 	void allocate_temp_record();
 	void load_indices();
