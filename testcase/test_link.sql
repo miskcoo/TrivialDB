@@ -1,12 +1,12 @@
 CREATE DATABASE db_link;
 USE db_link;
 CREATE TABLE Persons (
-    PersonID int,
+    PersonID int PRIMARY KEY,
     Name varchar(20)
 );
 
 CREATE TABLE Conn (
-    ConnID int,
+    ConnID int PRIMARY KEY,
     Name varchar(20)
 );
 
@@ -14,9 +14,7 @@ CREATE TABLE Conn2 (
     ConnID int,
     Name varchar(20)
 );
-CREATE INDEX Persons(PersonID);
 CREATE INDEX Persons(Name);
-CREATE INDEX Conn(ConnID);
 
 INSERT INTO Conn VALUES 
 	(9, 'Conn_9'),
@@ -36,7 +34,7 @@ INSERT INTO Persons VALUES
 	(6, 'Person_6'),
 	(8, 'Person_8');
 
+SELECT * FROM Persons, Conn, Conn2 WHERE Conn2.ConnID = Conn.ConnID AND Conn.ConnID = Persons.PersonID;
 SELECT * FROM Persons, Conn WHERE Persons.PersonID = Conn.ConnID;
-SELECT * FROM Persons, Conn, Conn2 WHERE Conn2.ConnID = Conn.ConnID;
 
 EXIT;

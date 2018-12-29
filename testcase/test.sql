@@ -1,7 +1,7 @@
 CREATE DATABASE db;
 USE db;
 CREATE TABLE Persons (
-    PersonID int,
+    PersonID int PRIMARY KEY,
     LastName varchar(20),
     FirstName varchar(20),
     Address varchar(20),

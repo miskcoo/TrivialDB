@@ -11,7 +11,7 @@ struct table_header_t
 	uint8_t main_index, is_main_index_additional;
 
 	int records_num;
-	uint32_t flag_notnull, flag_primary, flag_indexed;
+	uint32_t flag_notnull, flag_primary, flag_indexed, flag_unique;
 	uint8_t col_type[MAX_COL_NUM];
 
 	// the length of columns
@@ -25,6 +25,9 @@ struct table_header_t
 
 	char col_name[MAX_COL_NUM][MAX_NAME_LEN];
 	char table_name[MAX_NAME_LEN];
+
+	void dump();
 };
+
 
 #endif

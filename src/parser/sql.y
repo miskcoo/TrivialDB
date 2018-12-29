@@ -253,10 +253,15 @@ table_extra_option_list : table_extra_option_list ',' table_extra_option {
 						}
 						;
 
-table_extra_option : PRIMARY KEY '(' column_list ')' {
+table_extra_option : PRIMARY KEY '(' column_ref ')' {
 				   	$$ = (table_constraint_t*)malloc(sizeof(table_constraint_t));
 					$$->type = TABLE_CONSTRAINT_PRIMARY_KEY;
-					$$->values = $4;
+					$$->column_ref = $4;
+				   }
+				   | UNIQUE '(' column_ref ')' {
+				   	$$ = (table_constraint_t*)malloc(sizeof(table_constraint_t));
+					$$->type = TABLE_CONSTRAINT_UNIQUE;
+					$$->column_ref = $3;
 				   }
 				   ;
 
@@ -304,6 +309,8 @@ field_flags : field_flags field_flag  { $$ = $1 | $2; }
 			;
 
 field_flag  : NOT NULL_TOKEN  { $$ = FIELD_FLAG_NOTNULL; }
+			| UNIQUE          { $$ = FIELD_FLAG_UNIQUE; }
+			| PRIMARY KEY     { $$ = FIELD_FLAG_PRIMARY; }
 			;
 
 field_width : '(' INT_LITERAL ')'  { $$ = $2; }

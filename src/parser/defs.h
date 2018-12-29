@@ -16,12 +16,15 @@ typedef enum {
 } field_type_t;
 
 typedef enum {
-	FIELD_FLAG_NOTNULL = 1
+	FIELD_FLAG_NOTNULL = 1,
+	FIELD_FLAG_UNIQUE  = 2,
+	FIELD_FLAG_PRIMARY = 4
 } field_flag_t;
 
 typedef enum {
 	TABLE_CONSTRAINT_PRIMARY_KEY,
 	TABLE_CONSTRAINT_FOREIGN_KEY,
+	TABLE_CONSTRAINT_UNIQUE,
 	TABLE_CONSTRAINT_CHECK
 } table_constraint_type_t;
 
@@ -76,11 +79,6 @@ typedef struct field_item_t {
 	struct field_item_t *next;
 } field_item_t;
 
-typedef struct table_constraint_t {
-	int type;
-	void *values;
-} table_constraint_t;
-
 typedef struct linked_list_t {
 	void *data;
 	struct linked_list_t *next;
@@ -90,6 +88,11 @@ typedef struct column_ref_t {
 	char *table;
 	char *column;
 } column_ref_t;
+
+typedef struct table_constraint_t {
+	int type;
+	column_ref_t *column_ref;
+} table_constraint_t;
 
 typedef struct table_def_t {
 	char *name;

@@ -30,6 +30,8 @@ public:
 	void select_rows(const select_info_t *info);
 	void update_rows(const update_info_t *info);
 
+	void show_table(const char *table_name);
+
 public:
 	bool assert_db_open();
 	void cache_record(table_manager *tm, record_manager *rm);

@@ -48,6 +48,7 @@ public:
 	uint8_t get_column_type(int col) { return header.col_type[col]; }
 	int get_column_num() { return header.col_num; }
 	const char *get_table_name() { return header.table_name; }
+	void dump_table_info() { header.dump(); }
 
 	void init_temp_record();
 	int insert_record();

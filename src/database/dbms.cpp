@@ -260,6 +260,20 @@ void dbms::show_database(const char *db_name)
 {
 }
 
+void dbms::show_table(const char* table_name)
+{
+	if(assert_db_open())
+	{
+		table_manager *tm = cur_db->get_table(table_name);
+		if(tm == nullptr)
+		{
+			std::fprintf(stderr, "[Error] Table `%s` not found.\n", table_name);
+		} else {
+			tm->dump_table_info();
+		}
+	}
+}
+
 void dbms::create_table(const table_header_t *header)
 {
 	if(assert_db_open())

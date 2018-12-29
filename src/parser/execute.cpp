@@ -4,12 +4,50 @@
 #include "../database/dbms.h"
 #include "../table/table_header.h"
 
-void fill_table_header(table_header_t *header, const table_def_t *table);
+template<typename T, typename DataDeleter>
+void free_linked_list(linked_list_t *linked_list, DataDeleter data_deleter)
+{
+	for(linked_list_t *l_ptr = linked_list; l_ptr; )
+	{
+		T* data = (T*)l_ptr->data;
+		data_deleter(data);
+		linked_list_t *tmp = l_ptr;
+		l_ptr = l_ptr->next;
+		free(tmp);
+	}
+}
+
+void free_column_ref(column_ref_t *cref)
+{
+	free(cref->column);
+	free(cref->table);
+}
+
+void free_expression(expr_node_t *expr)
+{
+	if(expr->op == OPERATOR_NONE)
+	{
+		// terminator
+		if(expr->term_type == TERM_STRING)
+			free(expr->val_s);
+		else if(expr->term_type == TERM_COLUMN_REF)
+			free(expr->column_ref);
+	} else {
+		// non-terminator
+		free_expression(expr->left);
+		if(expr->right) free_expression(expr->right);
+	}
+
+	free(expr);
+}
+
+bool fill_table_header(table_header_t *header, const table_def_t *table);
 void execute_create_table(const table_def_t *table)
 {
 	table_header_t *header = new table_header_t;
-	fill_table_header(header, table);
-	dbms::get_instance()->create_table(header);
+	if(fill_table_header(header, table))
+		dbms::get_instance()->create_table(header);
+	else std::fprintf(stderr, "[Error] Fail to create table!\n");
 	delete header;
 	// TODO: free memory of table
 }
@@ -44,13 +82,19 @@ void execute_drop_table(const char *table_name)
 
 void execute_show_table(const char *table_name)
 {
-	printf("[show] table name = %s\n", table_name);
+	dbms::get_instance()->show_table(table_name);
+	free((void*)table_name);
 }
 
 void execute_insert(const insert_info_t *insert_info)
 {
 	dbms::get_instance()->insert_rows(insert_info);
-	// TODO: free memory
+	free(insert_info->table);
+	free_linked_list<column_ref_t>(insert_info->columns, free_column_ref);
+	free_linked_list<linked_list_t>(insert_info->values, [](linked_list_t *expr_list) {
+		free_linked_list<expr_node_t>(expr_list, free_expression);
+	} );
+	free((void*)insert_info);
 }
 
 void execute_delete(const delete_info_t *delete_info)
