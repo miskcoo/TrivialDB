@@ -34,7 +34,9 @@
 #define COL_FLAG_NOTNULL   4
 #define COL_FLAG_AUTOINC   8
 
+#define DATE_TEMPLATE      "%Y-%m-%d"
 #define COL_TYPE_INT       1
+#define COL_TYPE_DATE      2
 #define COL_TYPE_FLOAT     3
 // Note the actual data has one more zero byte
 #define COL_TYPE_VARCHAR   5

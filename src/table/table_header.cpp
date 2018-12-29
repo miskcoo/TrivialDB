@@ -24,6 +24,10 @@ bool fill_table_header(table_header_t *header, const table_def_t *table)
 				header->col_type[index]   = COL_TYPE_FLOAT;
 				header->col_length[index] = 4;
 				break;
+			case FIELD_TYPE_DATE:
+				header->col_type[index]   = COL_TYPE_DATE;
+				header->col_length[index] = 4;
+				break;
 			case FIELD_TYPE_CHAR:
 			case FIELD_TYPE_VARCHAR:
 				header->col_type[index]   = COL_TYPE_VARCHAR;
@@ -142,7 +146,27 @@ void table_header_t::dump()
 	std::printf("Record size = %d\n", records_num);
 	for(int i = 0; i != col_num; ++i)
 	{
-		std::printf("  [column] name = %s, length = %d, flag = ", col_name[i], col_length[i]);
+		std::printf("  [column] name = %s, type = ", col_name[i]);
+		switch(col_type[i])
+		{
+			case COL_TYPE_INT:
+				std::printf("INT");
+				break;
+			case COL_TYPE_FLOAT:
+				std::printf("FLOAT");
+				break;
+			case COL_TYPE_DATE:
+				std::printf("DATE");
+				break;
+			case COL_TYPE_VARCHAR:
+				std::printf("VARCHAR(%d)", col_length[i]);
+				break;
+			default:
+				std::printf("UNKNOWN");
+				break;
+		}
+
+		std::printf(", flags = ");
 		if(flag_notnull & (1 << i))
 			std::printf("NOT_NULL ");
 		if(flag_primary & (1 << i))
@@ -152,7 +176,16 @@ void table_header_t::dump()
 		if(flag_indexed & (1 << i))
 			std::printf("INDEXED ");
 		std::puts("");
-
 	}
+
+	for(int i = 0; i != foreign_key_num; ++i)
+	{
+		std::printf("  [foreign key] %s references %s.%s\n",
+			col_name[foreign_key[i]],
+			foreign_key_ref_table[i],
+			foreign_key_ref_column[i]
+		);
+	}
+
 	std::printf("======== Table Info End   ========\n");
 }

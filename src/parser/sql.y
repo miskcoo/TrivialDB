@@ -35,7 +35,7 @@ void yyerror(const char *s);
 
 %token TRUE FALSE NULL_TOKEN MIN MAX SUM AVG COUNT
 %token LIKE IS OR AND NOT NEQ GEQ LEQ
-%token INTEGER DOUBLE FLOAT CHAR VARCHAR
+%token INTEGER DOUBLE FLOAT CHAR VARCHAR DATE
 %token INTO FROM WHERE VALUES JOIN INNER OUTER
 %token LEFT RIGHT FULL ASC DESC ORDER BY IN ON AS
 %token DISTINCT GROUP USING INDEX TABLE DATABASE
@@ -43,11 +43,12 @@ void yyerror(const char *s);
 %token USE CREATE DROP SELECT INSERT UPDATE DELETE SHOW SET EXIT
 
 %token IDENTIFIER
+%token DATE_LITERAL
 %token STRING_LITERAL
 %token FLOAT_LITERAL
 %token INT_LITERAL
 
-%type <val_s> IDENTIFIER STRING_LITERAL
+%type <val_s> IDENTIFIER STRING_LITERAL DATE_LITERAL
 %type <val_f> FLOAT_LITERAL
 %type <val_i> INT_LITERAL
 
@@ -338,6 +339,7 @@ field_type  : INTEGER { $$ = FIELD_TYPE_INT; }
 		    | FLOAT   { $$ = FIELD_TYPE_FLOAT; }
 		    | DOUBLE  { $$ = FIELD_TYPE_FLOAT; }
 		    | CHAR    { $$ = FIELD_TYPE_CHAR; }
+		    | DATE    { $$ = FIELD_TYPE_DATE; }
 		    | VARCHAR { $$ = FIELD_TYPE_VARCHAR; }
 		    ;
 
@@ -455,6 +457,11 @@ term       : column_ref {
 		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
 				$$->val_f      = $1;
 				$$->term_type  = TERM_FLOAT;
+		   }
+		   | DATE_LITERAL {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->val_s      = $1;
+				$$->term_type  = TERM_DATE;
 		   }
 		   | STRING_LITERAL {
 		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));

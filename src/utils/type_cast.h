@@ -1,6 +1,7 @@
 #ifndef __TRIVIALDB_DBMS_TYPECAST__
 #define __TRIVIALDB_DBMS_TYPECAST__
 #include <cassert>
+#include <iomanip>
 #include "../expression/expression.h"
 #include "../defs.h"
 #include "../parser/defs.h"
@@ -15,6 +16,8 @@ namespace typecast
 				return TERM_INT;
 			case COL_TYPE_FLOAT:
 				return TERM_FLOAT;
+			case COL_TYPE_DATE:
+				return TERM_DATE;
 			case COL_TYPE_VARCHAR:
 				return TERM_STRING;
 			default:
@@ -40,6 +43,10 @@ namespace typecast
 			case COL_TYPE_FLOAT:
 				expr.val_f = *(float*)data;
 				expr.type = TERM_FLOAT;
+				break;
+			case COL_TYPE_DATE:
+				expr.val_i = *(int*)data;
+				expr.type = TERM_DATE;
 				break;
 			case COL_TYPE_VARCHAR:
 				expr.val_s = data;
@@ -72,6 +79,7 @@ namespace typecast
 
 	inline char *expr_to_db(expression &expr, term_type_t desired)
 	{
+		static char buf[32];
 		char *ret = nullptr;
 		switch(expr.type)
 		{
@@ -99,6 +107,17 @@ namespace typecast
 			case TERM_NULL:
 				ret = nullptr;
 				break;
+			case TERM_DATE:
+				if(desired == TERM_STRING)
+				{
+					time_t time = expr.val_i;
+					auto tm = std::localtime(&time);
+					std::strftime(buf, 32, DATE_TEMPLATE, tm);
+					ret = buf;
+				} else {
+					ret = (char*)&expr.val_i;
+				}
+				break;
 			default:
 				throw "[Error] unknown type.";
 		}
@@ -118,6 +137,8 @@ namespace typecast
 				return col_type == COL_TYPE_FLOAT;
 			case TERM_STRING:
 				return col_type == COL_TYPE_VARCHAR;
+			case TERM_DATE:
+				return col_type == COL_TYPE_DATE || col_type == COL_TYPE_VARCHAR;
 			default:
 				return false;
 		}

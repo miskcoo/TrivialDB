@@ -218,6 +218,7 @@ bool table_manager::set_temp_record(int col, const void *data)
 	{
 		case COL_TYPE_INT:
 		case COL_TYPE_FLOAT:
+		case COL_TYPE_DATE:
 			memcpy(tmp_record + header.col_offset[col], data, 4);
 			break;
 		case COL_TYPE_VARCHAR:
@@ -355,6 +356,13 @@ void table_manager::dump_record(record_manager *rm)
 			case COL_TYPE_VARCHAR:
 				std::printf("%s\n", buf);
 				break;
+			case COL_TYPE_DATE: {
+				char date_buf[32];
+				time_t time = *(int*)buf;
+				auto tm = std::localtime(&time);
+				std::strftime(date_buf, 32, DATE_TEMPLATE, tm);
+				std::printf("%s\n", date_buf);
+				break; }
 			default:
 				debug_puts("[Error] Data type not supported!");
 		}

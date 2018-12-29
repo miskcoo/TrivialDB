@@ -401,6 +401,13 @@ void dbms::select_rows(const select_info_t *info)
 					case TERM_BOOL:
 						std::printf("%s\n", ret.val_b ? "TRUE" : "FALSE");
 						break;
+					case TERM_DATE: {
+						char date_buf[32];
+						time_t time = ret.val_i;
+						auto tm = std::localtime(&time);
+						std::strftime(date_buf, 32, DATE_TEMPLATE, tm);
+						std::printf("%s\n", date_buf);
+						break; }
 					case TERM_NULL:
 						std::printf("NULL\n");
 						break;

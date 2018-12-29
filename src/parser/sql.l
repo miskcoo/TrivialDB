@@ -11,6 +11,7 @@ ID_TEMPLATE      [a-zA-Z][a-zA-Z0-9_]*
 INT_TEMPLATE     [0-9]+
 FLOAT_TEMPLATE   [0-9]+|([0-9]*\.[0-9]+)([eE][-+]?[0-9]+)?
 STRING_TEMPLATE  '(\\\\|\\n|\\r|\\\"|\\0|\\'|[^'\\])*'
+DATE_TEMPLATE    '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
 
 %%
 
@@ -81,6 +82,7 @@ int|INT|integer|INTEGER   { return INTEGER; }
 double|DOUBLE             { return DOUBLE; }
 float|FLOAT               { return FLOAT; }
 char|CHAR                 { return CHAR; }
+date|DATE                 { return DATE; }
 varchar|VARCHAR           { return VARCHAR; }
 
 exit|EXIT                 { return EXIT; }
@@ -88,6 +90,8 @@ exit|EXIT                 { return EXIT; }
 {ID_TEMPLATE}             { yylval.val_s = strdup(yytext); return IDENTIFIER; }
 {INT_TEMPLATE}            { yylval.val_i = atoi(yytext);   return INT_LITERAL; }
 {FLOAT_TEMPLATE}          { yylval.val_f = atof(yytext);   return FLOAT_LITERAL; }
+{DATE_TEMPLATE}           { yylval.val_s = strndup(yytext + 1, strlen(yytext) - 2);
+                            return DATE_LITERAL; }
 {STRING_TEMPLATE}         { yylval.val_s = strndup(yytext + 1, strlen(yytext) - 2);
                             return STRING_LITERAL; }
 

@@ -26,6 +26,7 @@ DELETE FROM Persons;
 SELECT * FROM Persons;
 INSERT INTO Persons (LastName, PersonID) VALUES 
 	('Zarisk', 10),
+	('1999-10-10', 30),
 	('Wasserstein', 20);
 SELECT * FROM Persons;
 SELECT COUNT(*) FROM Persons;
