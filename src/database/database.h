@@ -34,6 +34,7 @@ public:
 	void drop_table(const char *name);
 	int get_table_id(const char *name);
 	void create_table(const table_header_t *header);
+	void show_info();
 };
 
 #endif

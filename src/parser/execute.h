@@ -21,7 +21,6 @@ void execute_update(const update_info_t *update_info);
 void execute_create_index(const char *table_name, const char *col_name);
 void execute_drop_index(const char *table_name, const char *col_name);
 void execute_quit();
-void traverse_expr(const expr_node_t *expr_node);
 
 #ifdef __cplusplus
 }

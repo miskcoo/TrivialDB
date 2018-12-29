@@ -259,6 +259,9 @@ void dbms::drop_database(const char *db_name)
 
 void dbms::show_database(const char *db_name)
 {
+	database db;
+	db.open(db_name);
+	db.show_info();
 }
 
 void dbms::show_table(const char* table_name)

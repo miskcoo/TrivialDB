@@ -462,4 +462,26 @@ std::string expression::to_string(const expr_node_t *expr)
 
 void expression::free_exprnode(expr_node_t *expr)
 {
+	if(!expr) return;
+	if(expr->op == OPERATOR_NONE)
+	{
+		switch(expr->term_type)
+		{
+			case TERM_STRING:
+				free(expr->val_s);
+				break;
+			case TERM_COLUMN_REF:
+				free(expr->column_ref->table);
+				free(expr->column_ref->column);
+				free(expr->column_ref);
+				break;
+			default:
+				break;
+		}
+	} else {
+		free_exprnode(expr->left);
+		free_exprnode(expr->right);
+	}
+
+	free(expr);
 }

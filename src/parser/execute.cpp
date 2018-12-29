@@ -19,26 +19,10 @@ void free_linked_list(linked_list_t *linked_list, DataDeleter data_deleter)
 
 void free_column_ref(column_ref_t *cref)
 {
+	if(!cref) return;
 	free(cref->column);
 	free(cref->table);
-}
-
-void free_expression(expr_node_t *expr)
-{
-	if(expr->op == OPERATOR_NONE)
-	{
-		// terminator
-		if(expr->term_type == TERM_STRING)
-			free(expr->val_s);
-		else if(expr->term_type == TERM_COLUMN_REF)
-			free(expr->column_ref);
-	} else {
-		// non-terminator
-		free_expression(expr->left);
-		if(expr->right) free_expression(expr->right);
-	}
-
-	free(expr);
+	free(cref);
 }
 
 bool fill_table_header(table_header_t *header, const table_def_t *table);
@@ -49,7 +33,24 @@ void execute_create_table(const table_def_t *table)
 		dbms::get_instance()->create_table(header);
 	else std::fprintf(stderr, "[Error] Fail to create table!\n");
 	delete header;
-	// TODO: free memory of table
+
+	free(table->name);
+	free_linked_list<table_constraint_t>(table->constraints, [](table_constraint_t *data) {
+		if(data->type == TABLE_CONSTRAINT_CHECK)
+			expression::free_exprnode(data->check_cond);
+		else free_column_ref(data->column_ref);
+		free(data);
+	} );
+
+	for(field_item_t *it = table->fields; it; )
+	{
+		field_item_t *tmp = it;
+		free(it->name);
+		it = it->next;
+		free(tmp);
+	}
+
+	free((void*)table);
 }
 
 void execute_create_database(const char *db_name)
@@ -72,7 +73,8 @@ void execute_drop_database(const char *db_name)
 
 void execute_show_database(const char *db_name)
 {
-	printf("[show] database name = %s\n", db_name);
+	dbms::get_instance()->show_database(db_name);
+	free((void*)db_name);
 }
 
 void execute_drop_table(const char *table_name)
@@ -92,7 +94,7 @@ void execute_insert(const insert_info_t *insert_info)
 	free(insert_info->table);
 	free_linked_list<column_ref_t>(insert_info->columns, free_column_ref);
 	free_linked_list<linked_list_t>(insert_info->values, [](linked_list_t *expr_list) {
-		free_linked_list<expr_node_t>(expr_list, free_expression);
+		free_linked_list<expr_node_t>(expr_list, expression::free_exprnode);
 	} );
 	free((void*)insert_info);
 }
@@ -100,16 +102,35 @@ void execute_insert(const insert_info_t *insert_info)
 void execute_delete(const delete_info_t *delete_info)
 {
 	dbms::get_instance()->delete_rows(delete_info);
+	free(delete_info->table);
+	expression::free_exprnode(delete_info->where);
+	free((void*)delete_info);
 }
 
 void execute_select(const select_info_t *select_info)
 {
 	dbms::get_instance()->select_rows(select_info);
+	expression::free_exprnode(select_info->where);
+	free_linked_list<expr_node_t>(select_info->exprs, expression::free_exprnode);
+	free_linked_list<table_join_info_t>(select_info->tables, [](table_join_info_t *data) {
+		free(data->table);
+		if(data->join_table)
+			free(data->join_table);
+		expression::free_exprnode(data->cond);
+		free(data);
+	} );
+
+	free((void*)select_info);
 }
 
 void execute_update(const update_info_t *update_info)
 {
 	dbms::get_instance()->update_rows(update_info);
+	free(update_info->table);
+	free_column_ref(update_info->column_ref);
+	expression::free_exprnode(update_info->where);
+	expression::free_exprnode(update_info->value);
+	free((void*)update_info);
 }
 
 void execute_create_index(const char *table_name, const char *col_name)
@@ -124,22 +145,6 @@ void execute_drop_index(const char *table_name, const char *col_name)
 	dbms::get_instance()->drop_index(table_name, col_name);
 	free((char*)table_name);
 	free((char*)col_name);
-}
-
-void traverse_expr(const expr_node_t *expr_node)
-{
-	if(expr_node == nullptr) return;
-	if(expr_node->term_type != TERM_NONE)
-	{
-		switch(expr_node->term_type)
-		{
-			case TERM_INT: printf("[int: %d]", expr_node->val_i); break;
-			case TERM_FLOAT: printf("[float: %f]", expr_node->val_f); break;
-			case TERM_STRING: printf("[str: %s]", expr_node->val_s); break;
-			default: break;
-		}
-	} else {
-	}
 }
 
 void execute_quit()

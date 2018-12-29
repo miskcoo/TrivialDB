@@ -117,3 +117,13 @@ void database::drop_table(const char *name)
 
 	// TODO: drop table
 }
+
+void database::show_info()
+{
+	std::printf("======== Database Info Begin ========\n");
+	std::printf("Database name = %s\n", info.db_name);
+	std::printf("Table number  = %d\n", info.table_num);
+	for(int i = 0; i != info.table_num; ++i)
+		std::printf("  [table] name = %s\n", info.table_name[i]);
+	std::printf("======== Database Info End   ========\n");
+}
