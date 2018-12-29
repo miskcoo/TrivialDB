@@ -36,9 +36,9 @@ void execute_create_table(const table_def_t *table)
 
 	free(table->name);
 	free_linked_list<table_constraint_t>(table->constraints, [](table_constraint_t *data) {
-		if(data->type == TABLE_CONSTRAINT_CHECK)
-			expression::free_exprnode(data->check_cond);
-		else free_column_ref(data->column_ref);
+		expression::free_exprnode(data->check_cond);
+		free_column_ref(data->column_ref);
+		free_column_ref(data->foreign_column_ref);
 		free(data);
 	} );
 

@@ -2,6 +2,7 @@
 #include "../index/index.h"
 #include "../expression/expression.h"
 #include "../utils/type_cast.h"
+#include "../database/dbms.h"
 #include <cstdio>
 #include <cassert>
 #include <cstdio>
@@ -476,7 +477,26 @@ bool table_manager::check_constraints(const char *buf)
 		}
 	}
 
+	for(int i = 0; i != header.foreign_key_num; ++i)
+	{
+		if(!check_foreign(buf, i))
+		{
+			std::fprintf(stderr, "[Error] Foreign key constraint broken!\n");
+			return false;
+		}
+	}
+
 	return true;
+}
+
+bool table_manager::check_foreign(const char *buf, int key_id)
+{
+	int cid = header.foreign_key[key_id];
+	return dbms::get_instance()->value_exists(
+		header.foreign_key_ref_table[key_id],
+		header.foreign_key_ref_column[key_id],
+		buf + header.col_offset[cid]
+	);
 }
 
 bool table_manager::check_unique(const char *buf, int col)
@@ -562,4 +582,31 @@ bool table_manager::check_value_constraint(const expr_node_t *expr)
 		std::puts(msg);
 		return false;
 	}
+}
+
+bool table_manager::value_exists(const char *column, const char *key)
+{
+	int cid = lookup_column(column);
+	if(cid < 0)
+	{
+		std::printf("[Error] No column named `%s` in `%s`\n",
+				column, header.table_name);
+		return false;
+	}
+
+	index_manager *idx = indices[cid];
+	if(!idx) 
+	{
+		std::printf("[Error] No index for column `%s` in table `%s`\n",
+				column, header.table_name);
+		return false;
+	}
+
+	auto it = idx->get_iterator_lower_bound(key);
+	if(it.is_end()) return false;
+	record_manager rm = open_record_from_index_lower_bound(it.get());
+	auto comparer = get_index_comparer(get_column_type(cid));
+	rm.seek(header.col_offset[cid]);
+	rm.read(tmp_index, header.col_length[cid]);
+	return comparer(key, tmp_index) == 0;
 }

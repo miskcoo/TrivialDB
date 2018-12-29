@@ -68,6 +68,7 @@ public:
 	bool has_index(int cid);
 	index_manager *get_index(int cid);
 	record_manager open_record_from_index_lower_bound(std::pair<int, int> idx_pos, int *rid = nullptr);
+	bool value_exists(const char *column, const char *key);
 
 	// get the record R such that R.rid = min_{r.rid >= rid} r.rid
 	record_manager get_record_ptr_lower_bound(int rid, bool dirty=false);
@@ -77,9 +78,11 @@ public:
 	void dump_record(int rid);
 	void dump_record(record_manager *rm);
 
+private:
 	bool check_constraints(const char *buf);
 	bool check_unique(const char *buf, int col);
 	bool check_primary(const char *buf);
+	bool check_foreign(const char *buf, int key_id);
 	bool check_notnull(const char *buf);
 	bool check_value_constraint(const expr_node_t *expr);
 	void cache_record_from_tmp_cache();

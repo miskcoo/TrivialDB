@@ -117,10 +117,8 @@ typedef struct expr_node_t {
 
 typedef struct table_constraint_t {
 	int type;
-	union {
-		column_ref_t *column_ref;
-		expr_node_t *check_cond;
-	};
+	column_ref_t *column_ref, *foreign_column_ref;
+	expr_node_t *check_cond;
 } table_constraint_t;
 
 typedef struct delete_info_t {

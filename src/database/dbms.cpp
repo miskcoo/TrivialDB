@@ -675,11 +675,21 @@ expr_node_t *dbms::get_join_cond(expr_node_t *cond)
 	if(cond->left->term_type == TERM_COLUMN_REF && cond->right->term_type == TERM_COLUMN_REF)
 	{
 		return cond;
-	} else if(cond->left->term_type == TERM_NONE) {
-		return get_join_cond(cond->right);
-	} else if(cond->right->term_type == TERM_NONE) {
-		return get_join_cond(cond->left);
 	} else {
 		return nullptr;
 	}
+}
+
+bool dbms::value_exists(const char *table, const char *column, const char *data)
+{
+	if(!assert_db_open())
+		return false;
+	table_manager *tm = cur_db->get_table(table);
+	if(tm == nullptr) 
+	{
+		std::printf("[Error] No table named `%s`\n", table);
+		return false;
+	}
+
+	return tm->value_exists(column, data);
 }

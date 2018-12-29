@@ -38,6 +38,8 @@ public:
 		const std::vector<expr_node_t*> &exprs,
 		const std::vector<std::string> &expr_names);
 
+	bool value_exists(const char *table, const char *column, const char *data);
+
 public:
 	bool assert_db_open();
 	void cache_record(table_manager *tm, record_manager *rm);

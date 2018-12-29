@@ -253,18 +253,30 @@ table_extra_option_list : table_extra_option_list ',' table_extra_option {
 						}
 						;
 
-table_extra_option : PRIMARY KEY '(' column_ref ')' {
-				   	$$ = (table_constraint_t*)malloc(sizeof(table_constraint_t));
+table_extra_option : PRIMARY KEY '(' IDENTIFIER ')' {
+				   	$$ = (table_constraint_t*)calloc(1, sizeof(table_constraint_t));
+					$$->column_ref = (column_ref_t*)malloc(sizeof(column_ref_t));
+					$$->column_ref->table = NULL;
+					$$->column_ref->column = $4;
 					$$->type = TABLE_CONSTRAINT_PRIMARY_KEY;
-					$$->column_ref = $4;
+				   }
+				   | FOREIGN KEY '(' IDENTIFIER ')' REFERENCES IDENTIFIER '(' IDENTIFIER ')' {
+				   	$$ = (table_constraint_t*)calloc(1, sizeof(table_constraint_t));
+					$$->column_ref = (column_ref_t*)malloc(sizeof(column_ref_t));
+					$$->column_ref->table = NULL;
+					$$->column_ref->column = $4;
+					$$->foreign_column_ref = (column_ref_t*)malloc(sizeof(column_ref_t));
+					$$->foreign_column_ref->table = $7;
+					$$->foreign_column_ref->column = $9;
+					$$->type = TABLE_CONSTRAINT_FOREIGN_KEY;
 				   }
 				   | UNIQUE '(' column_ref ')' {
-				   	$$ = (table_constraint_t*)malloc(sizeof(table_constraint_t));
+				   	$$ = (table_constraint_t*)calloc(1, sizeof(table_constraint_t));
 					$$->type = TABLE_CONSTRAINT_UNIQUE;
 					$$->column_ref = $3;
 				   }
 				   | CHECK '(' condition ')' {
-				   	$$ = (table_constraint_t*)malloc(sizeof(table_constraint_t));
+				   	$$ = (table_constraint_t*)calloc(1, sizeof(table_constraint_t));
 					$$->type = TABLE_CONSTRAINT_CHECK;
 					$$->check_cond = $3;
 				   }

@@ -95,11 +95,9 @@ inline bool strlike(const char *s1, const char *s2)
 				status = STATUS_A;
 				break;
 		}
-
-		return std::regex_match(s1, std::regex(pattern));
 	}
 
-	return true;
+	return std::regex_match(s1, std::regex(pattern));
 }
 
 #endif

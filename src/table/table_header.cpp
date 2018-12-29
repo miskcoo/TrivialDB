@@ -73,6 +73,16 @@ bool fill_table_header(table_header_t *header, const table_def_t *table)
 				if(cid < 0) return false;
 				header->flag_primary |= 1 << cid;
 				break;
+			case TABLE_CONSTRAINT_FOREIGN_KEY:
+				cid = lookup_column(constraint->column_ref->column);
+				if(cid < 0) return false;
+				header->foreign_key[header->foreign_key_num] = cid;
+				std::strcpy(header->foreign_key_ref_table[header->foreign_key_num],
+						constraint->foreign_column_ref->table);
+				std::strcpy(header->foreign_key_ref_column[header->foreign_key_num],
+						constraint->foreign_column_ref->column);
+				++header->foreign_key_num;
+				break;
 			case TABLE_CONSTRAINT_CHECK:
 				if(header->check_constaint_num > MAX_CHECK_CONSTRAINT_NUM)
 				{
