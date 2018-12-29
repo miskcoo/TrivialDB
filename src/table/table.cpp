@@ -548,6 +548,9 @@ bool table_manager::check_primary(const char *buf)
 
 bool table_manager::check_notnull(const char *buf)
 {
+	int null_mark = ((int*)buf)[1];
+	if(null_mark & header.flag_notnull)
+		return false;
 	return true;
 }
 
