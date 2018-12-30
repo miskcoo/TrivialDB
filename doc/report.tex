@@ -1,0 +1,220 @@
+\documentclass[10pt]{article}
+\usepackage{minted, ctex}
+\usepackage{amsthm, amsmath, amssymb, amsfonts}
+\usepackage{graphicx, float, xcolor, subcaption}
+%\usepackage[margin=1in]{geometry}
+\usepackage[a4paper,left=3cm,right=3cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage[toc,page]{appendix}
+\title{数据库系统概论\ 项目报告}
+\author{周聿浩\\ \small{2016011347}}
+\newtheorem{theorem}{\hspace{2em}Theorem}[section]
+\newtheorem{definition}{\hspace{2em}Definition}[section]
+\newtheorem{lemma}{\hspace{2em}Lemma}[section]
+\newtheorem{proposition}{\hspace{2em}Proposition}[section]
+\newtheorem{corollary}{\hspace{2em}Corollary}[section]
+\newcommand{\todo}[1]{{\color{red}[TODO: #1]}}
+
+\newcommand{\F}{\mathbb F}
+\newcommand{\E}{\mathbb E}
+\newcommand{\R}{\mathbb R}
+\newcommand{\Q}{\mathbb Q}
+\newcommand{\C}{\mathbb C}
+\newcommand{\Z}{\mathbb Z}
+\newcommand{\N}{\mathbb N}
+\newcommand{\Prob}{\mathbb P}
+
+\newcommand{\textand}{\quad \text{and} \quad}
+\newcommand{\textor}{\quad \text{or} \quad}
+
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\norm}[1]{\left \Vert #1 \right \Vert}
+\newcommand{\set}[1]{\left \{ #1 \right \}}
+\newcommand{\tr}{\text{tr}} % trace
+\newcommand{\Var}{\text{Var}} 
+\newcommand{\diag}{\text{diag}} 
+\newcommand{\inner}[2]{\left \langle #1, #2 \right \rangle}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\clearpage
+\section{项目简介}
+TrivialDB是一个简单的数据库管理系统，我们实现了大部分常见的SQL语句和类型。同时支持多表连接、复杂表达式运算、多主键约束、外键约束、CHECK约束、UNIQUE和DEFAULT约束、聚集查询、利用B+树索引的查询优化。
+
+整个数据库基于一个自行实现的页式文件系统\footnote{没有使用提供的页式文件系统。}，同时支持多种不同的页结构，大致分为B+树索引叶节点、B+树索引内部节点、B+树叶节点和B+树内部节点。在此之上，构建有B+树以及表和索引结构。
+
+最后通过FLex/Bison解析用户输入的命令，传递给数据库管理系统进行执行。
+
+本项目需要依赖FLex/Bison，并且需要编译器支持C++11特性。使用CMake进行自动构建。
+\section{系统功能}
+\subsection{数据类型}
+数据库支持的基本类型有：
+\begin{itemize}
+	\item 整型（INT）
+	\item 浮点型（FLOAT）
+	\item 字符串型（VARCHAR）
+	\item 日期型（DATE），日期格式为``\texttt{YYYY-MM-dd}''。
+\end{itemize}
+日期类型的字面值和字符串相同，在实现中如果必要可以转换为字符串。
+\subsection{SQL语句}
+我们支持的SQL语句基本和要求类似，一共有如下几种
+\begin{itemize}
+	\item 插入语句：\texttt{INSERT INTO \dots VALUES \dots}
+	\item 删除语句：\texttt{DELETE FROM \dots WHERE \dots}
+	\item 查询语句：\texttt{SELECT \dots FROM \dots WHERE \dots}
+	\item 更新语句：\texttt{UPDATE \dots SET \dots WHERE \dots}
+	\item 创建数据库：\texttt{CREATE DATABASE \dots}
+	\item 删除数据库：\texttt{DROP DATABASE \dots}
+	\item 切换数据库：\texttt{USE \dots}
+	\item 显示数据库信息：\texttt{SHOW DATABASE \dots}
+	\item 创建表：\texttt{CREATE TABLE \dots}
+	\item 删除表：\texttt{DROP TABLE \dots}
+	\item 显示表信息：\texttt{SHOW TABLE \dots}
+	\item 创建索引：\texttt{CREATE INDEX \dots}
+	\item 删除索引：\texttt{DROP INDEX \dots}
+\end{itemize}
+\subsection{复杂表达式处理}
+表达式大致可以分为两种：算术表达式和条件表达式。由于采用Bison进行解析，可以支持任意深度嵌套的复杂表达式。我们所支持的基本运算主要如下
+\begin{itemize}
+	\item 四则运算，针对整数和浮点数进行。
+	\item 比较运算符，即\texttt{<=, <, =, >, >=, <>}。
+	\item 模糊匹配运算符，即LIKE，其实现采用C++11的正则表达式库。
+	\item 范围匹配运算符，即IN，可以在表的CHECK约束中以及WHERE子句中使用。
+	\item 空值判定运算符，即IS NULL和IS NOT NULL两种。
+	\item 逻辑运算，包含NOT、AND和OR三种。
+\end{itemize}
+以下是一些复杂表达式运算的例子
+\begin{minted}{sql}
+UPDATE customer SET age = age + 1 WHERE age < 18 AND gender = 'F';
+SELECT * FROM customer WHERE name LIKE 'John %son';
+SELECT * FROM students WHERE grades IN ('A', 'B', 'C');
+SELECT * FROM students WHERE name IS NOT NULL;
+\end{minted}
+\subsection{聚集查询}
+我们实现了五种聚集查询函数COUNT、SUM、AVG、MIN和MAX。其中COUNT不支持DISTINCT关键字。例如
+\begin{minted}{sql}
+SELECT COUNT(*) FROM customer WHERE age > 18;
+SELECT AVG(age) FROM customer WHERE age <= 18;
+\end{minted}
+\subsection{属性完整性约束}
+我们支持多种属性完整性约束，分别是
+\begin{itemize}
+	\item 主键约束。一个表可以有多个列联合起来作为主键，只有在所有主键都相同时才认为两条记录有冲突，即这种情况下主键是一个元组。
+	\item 外键约束，每个域都可以有外键约束，引用另外一个表的主键。
+	\item UNIQUE约束，该约束限制某一列的值不能重复。
+	\item NOT NULL约束，该约束限制某一列不能有空值。
+	\item DEFAULT约束，该约束可以在INSERT语句不指定值是给某列赋予一个默认值。
+	\item CHECK约束，该约束可以对表中元素的值添加条件表达式的检查。
+\end{itemize}
+下面是一个简单的例子，注意如果在多个列都指定了PRIMARY KEY，那么就认为主键是一个元组，而不是有多个主键。例如Infos表的主键为(PersonID, InfoID)。
+\begin{minted}{sql}
+CREATE TABLE Persons (
+    PersonID int PRIMARY KEY NOT NULL,
+    Name varchar(20),
+    Age int DEFAULT 1,
+    Gender varchar(1),
+    CHECK (Age >= 1 AND Age <= 100),
+    CHECK (Gender IN ('F', 'M'))
+);
+
+CREATE TABLE Infos (
+    PersonID int PRIMARY KEY,
+    InfoID int PRIMARY KEY,
+    FOREIGN KEY (PersonID) REFERENCES Persons(PersonID)
+);
+\end{minted}
+\subsection{多表连接查询}
+在SELECT语句中，我们支持任意多表的连接操作，例如
+\begin{minted}{sql}
+SELECT * FROM A, B, C WHERE A.ID = B.ID AND C.Name = A.Name
+\end{minted}
+并且，对于两个表的连接，如果连接的条件为两个列的相等，例如A.Col1 = B.Col2，那么如果这两个列的某一个拥有索引，会利用索引进行查询优化。例如如下查询就可以优化
+\begin{minted}{sql}
+SELECT * FROM Persons, Infos WHERE Persons.PersonID = Infos.PersonID;
+\end{minted}
+\section{底层数据结构}
+\subsection{页式文件系统}
+页式文件系统是最基本的结构，依赖于操作系统的文件管理。一个页的大小为4KB，一个文件的读写均按照页为单位。为了读写的效率，我们采用缓存机制，每次访问页后会缓存在内存中，并且写操作不会马上写入文件。缓存的替换方法为当其填满后会将最少访问的一个写回文件。
+
+在我们的实现中，页式文件系统主要在fs目录内。支持同时打开多个文件。
+\subsection{页结构}
+一个页可以被解释为多种不同的结构，其基本结构有三种：overflow、fixed、variant。每个页的前2个字节用于标识该页为何种类型。
+
+\paragraph{overflow页} 该页结构较为简单，用于存储过长的数据。其头部包含三个元素：页标识符（2字节）、页内容大小（2字节）和下一页的页号（4字节）。其于部分均用来存储溢出的数据。完整的溢出数据是用overflow页组成的链表存储。
+
+\paragraph{fixed页} 该页结构用于记录B+树的内部节点，其页头按顺序分别为
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|} \hline
+		\textbf{属性名称} & \textbf{属性解释} & \textbf{属性长度} \\ \hline
+		magic & 页标识符 & 2 \\ \hline
+		field\_size & 关键字的长度 & 2 \\ \hline
+		size & 页中存储的项数 & 4 \\ \hline
+		next\_page & B+树中该页的右邻居 & 4 \\ \hline
+		prev\_page & B+树中该页的左邻居 & 4 \\ \hline
+	\end{tabular}
+\end{table}
+其余部分为页的数据部分，数据分为两个部分：key和child。分别表示B+树节点的关键字和儿子指针。key部分按照大小排序紧跟着页头后连续存储。child部分是在页的尾部开始往前连续存储。
+
+\paragraph{variant页} 该页结构用于索引B+树的内部节点，以及记录B+树的页节点等需要存储较长数据的页。其插入和删除项不会对数据进行移动，而只修改指向数据的指针。其页头按顺序分别为
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|} \hline
+		\textbf{属性名称} & \textbf{属性解释} & \textbf{属性长度} \\ \hline
+		magic & 页标识符 & 2 \\ \hline
+		flags & 页属性标识（未用） & 2 \\ \hline
+		free\_block & 指向页中第一个空闲块 & 2 \\ \hline
+		free\_size & 页中空闲块的大小 & 2 \\ \hline
+		size & 页中存储的项数 & 2 \\ \hline
+		bottom\_used & 页中尾部连续使用的最长的大小 & 2 \\ \hline
+		next\_page & B+树中该页的右邻居 & 4 \\ \hline
+		prev\_page & B+树中该页的左邻居 & 4 \\ \hline
+	\end{tabular}
+\end{table}
+
+variant页较为复杂，各项数据可以不是连续存储的。每当删除一项时会产生碎片，碎片使用链表连接，表头和碎片数用页头中的free\_block和free\_size记录。由于各个数据项可以不按照顺序存储，在紧接着页头的部分有连续存储的指向各个数据项的指针。插入和删除只会改变指针的内容。注意如果发现碎片过多可能会进行重整将数据变为连续存储。
+
+\subsection{记录结构}
+每条记录都会有一个唯一的rowid标识，它会作为记录B+树的键。记录是存储在记录B+树的页节点中。记录B+树的内部节点的页结构是fixed页，叶子节点的结构是variant页。如果发现记录过长，则会按照链表的方式将溢出的数据存储在overflow页中。
+
+每条记录的前4个字节用于存储rowid，这也方便B+树进行查询比较。紧跟着的4个字节用于存储该记录的项是否是空。再往下是用于存储各个列的数据，具体的存储顺序是根据创建时表的结构来决定的，记录B+树不需要了解之后各个列的具体结构。
+
+\subsection{索引结构}
+索引B+树的叶节点和内部节点均为variant页，因为索引的关键字可能是较长的字符串。索引的关键字包含三个部分：对应项的rowid、非空标识和索引的键。这三个部分作为一个元组构成索引B+树关键字，注意索引关键字的长度不能够过长。
+
+索引关键字比较时，我们认为空值小于任何非空值，并且当两个键相同时比较rowid。
+
+\subsection{表结构}
+每个表分为两个部分存储，表头单独存储为一个文件，表项和索引通过页式文件系统存储为一个文件。
+
+表头主要包含各个列的信息，以及完整性约束的信息。特别需要注意的是CHECK约束的表达式信息被转换为波兰式存储以及解析。列的信息包含列名、列类型、列长度、列在对应记录中的存储偏移量以及列是否有索引等约束信息。另外还会存储索引B+树和数据B+树的根节点对应的页号。
+
+每一个记录的存储结构为4个字节的rowid，4个字节的空标识之后按照顺序存储对应的列。
+\section{SQL命令处理}
+在基础的数据结构之上有表管理器、索引管理器、数据库管理器三个部分。表管理器用于处理一个表的插入、删除和查询等操作，并且会进行数据约束的检查。索引管理器用于对索引B+树进行维护。数据库管理器用于管理一个数据库的所有表。在其之上是DBMS，它和词法/语法分析器进行交互，转发和处理查询请求。
+
+\subsection{SQL语句解析}
+SQL语句的解析利用FLex/Bison根据词法、语法规则自动解析SQL命令。程序会从标准输入读取信息。SQL的词法和语法分析参考了开源项目的实现。
+
+语法分析的过程会建立抽象语法树，在结束一条语句的处理后会释放抽象语法树的内存。整个解析模块在parse目录中。解析器和数据库管理系统的接口定义在parser/execute.h内。
+\subsection{查询处理}
+对于数据库结构管理的语句（建表、建索引等）处理较为简单，直接提出抽象语法树的信息翻译为系统内部的类型即可。
+
+对于UPDATE、DELETE、INSERT和SELECT语句。其中INSERT语句由于不需要直接读取表中记录，直接遍历语法分析树中需要插入的内容利用表管理器插入即可。在表管理器中会有一个临时的记录，插入的过程首先对该记录进行操作，之后表管理器会将这个临时记录按照对应的记录结构插入到记录B+树中，同时更新对应的索引。
+
+另外三种语句均可能有WHERE子句，并且需要遍历一个或多个表的信息。我们实现一个iterate函数提供一个公共的遍历接口。iterate会遍历需要的表项，并且通过计算WHERE字句中的条件，在满足时通过一个回调函数来针对三种不同的语句进行各自的处理。
+
+在遍历的过程中，我们会利用索引来进行查询的加速。例如在双表连接时，若连接条件为两个列相等，那么如果其中至少一个列拥有索引，就会遍历另一个记录，并且通过索引直接对第二重循环进行优化。
+\subsection{表达式计算}
+表达式计算是在处理查询语句是一个可能需要的操作，我们实现了一个expression类用于保存计算结果。在iterate函数中，每遍历到一个记录就会将其内容加入到一个缓存中。之后根据语法分析树计算表达式的值的时候如果需要读取对某个列的引用就会在缓存中进行读取。
+
+针对语法分析树的表达式计算是编译原理课程的内容，在此不详细叙述。
+\subsection{完整性约束}
+\paragraph{主键约束} 对于主键约束，我们在创建表是会至少保证主键中至少有一个拥有索引。之后在检测约束是会对这一个拥有索引的列通过索引查询对应的记录，之后再检查其与主键是否完全相等。另外，如果创建表时没有主键约束，那么rowid就被认为是主键。
+\paragraph{外键约束} 对于外键，在检测约束是会利用数据库管理系统顶层模块将查询转发到对应的表中进行处理。直接通过索引判断是否有对应的值即可。
+\paragraph{CHECK约束} 该类约束在处理时先缓存表内容，之后利用表达式计算引擎计算对应表达式信息即可。
+\paragraph{UNIQUE约束} 这类约束的实现和主键约束类似，直接通过索引判断即可。
+\paragraph{NOT NULL约束} 这类约束实现较为简单，直接判断记录的空值记录区域。
+\paragraph{DEFAULT约束} 这类约束直接在初始化一个记录时将其对应内容填充为给定的值即可。
+\end{document}
