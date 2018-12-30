@@ -10,6 +10,7 @@
 #define THROW_UNSUPPORTED_OPERATOR throw "[Error] unsupported operator.";
 #define THROW_COLUMN_NOT_CACHED    throw "[Error] column not cached.";
 #define THROW_COLUMN_NOT_UNIQUE    throw "[Error] column not unique.";
+#define THROW_TYPE_INCOMPATIBLE    throw "[Error] operand type incompatible.";
 
 static std::unordered_multimap<
 	std::string,   // col_name
@@ -119,6 +120,9 @@ inline expression eval_terminal(const expr_node_t *expr)
 			break;
 		case TERM_COLUMN_REF:
 			ret = eval_terminal_column_ref(expr);
+			break;
+		case TERM_LITERAL_LIST:
+			ret.literal_list = expr->literal_list;
 			break;
 		default:
 			assert(0);
@@ -402,6 +406,60 @@ inline expression eval_null_operands(operator_type_t op)
 	return ret;
 }
 
+bool eval_in_expression(expression left, linked_list_t *literal_list)
+{
+	for(linked_list_t *l_ptr = literal_list; l_ptr; l_ptr = l_ptr->next)
+	{
+		expr_node_t *val = (expr_node_t*)l_ptr->data;
+		assert(val->op == OPERATOR_NONE);
+		switch(left.type)
+		{
+			case TERM_INT:
+				if(val->term_type == TERM_INT)
+				{
+					if(left.val_i == val->val_i)
+						return true;
+				} else {
+					THROW_TYPE_INCOMPATIBLE;
+				}
+				break;
+			case TERM_FLOAT:
+				if(val->term_type == TERM_FLOAT)
+				{
+					if(left.val_f == val->val_f)
+						return true;
+				} else {
+					THROW_TYPE_INCOMPATIBLE;
+				}
+				break;
+			case TERM_STRING:
+				if(val->term_type == TERM_STRING || val->term_type == TERM_DATE)
+				{
+					if(std::strcmp(left.val_s, val->val_s) == 0)
+						return true;
+				} else {
+					THROW_TYPE_INCOMPATIBLE;
+				}
+				break;
+			case TERM_DATE:
+				if(val->term_type == TERM_DATE)
+				{
+					expression right = eval_terminal(val);
+					if(left.val_i == right.val_i)
+						return true;
+				} else {
+					THROW_TYPE_INCOMPATIBLE;
+				}
+				break;
+			case TERM_NULL:
+				return false;
+			default: THROW_TYPE_INCOMPATIBLE;
+		}
+	}
+
+	return false;
+}
+
 expression expression::eval(const expr_node_t *expr)
 {
 	assert(expr != nullptr);
@@ -423,6 +481,15 @@ expression expression::eval(const expr_node_t *expr)
 		expression ret;
 		ret.type = TERM_NULL;
 		return ret;
+	}
+
+	if(expr->op == OPERATOR_IN)
+	{
+		bool ret = eval_in_expression(left, right.literal_list);
+		expression expr;
+		expr.type = TERM_BOOL;
+		expr.val_b = ret;
+		return expr;
 	}
 
 	if(!is_unary && left.type != right.type && left.type != TERM_NULL)
@@ -535,28 +602,3 @@ std::string expression::to_string(const expr_node_t *expr)
 	}
 }
 
-void expression::free_exprnode(expr_node_t *expr)
-{
-	if(!expr) return;
-	if(expr->op == OPERATOR_NONE)
-	{
-		switch(expr->term_type)
-		{
-			case TERM_STRING:
-				free(expr->val_s);
-				break;
-			case TERM_COLUMN_REF:
-				free(expr->column_ref->table);
-				free(expr->column_ref->column);
-				free(expr->column_ref);
-				break;
-			default:
-				break;
-		}
-	} else {
-		free_exprnode(expr->left);
-		free_exprnode(expr->right);
-	}
-
-	free(expr);
-}

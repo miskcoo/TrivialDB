@@ -51,6 +51,7 @@ typedef enum {
 	OPERATOR_NEQ,
 	OPERATOR_GT,
 	OPERATOR_LT,
+	OPERATOR_IN,
 	OPERATOR_LIKE,
 	/* unary */
 	OPERATOR_NEGATE = OPERATOR_UNARY,
@@ -73,6 +74,7 @@ typedef enum {
 	TERM_DATE,
 	TERM_FLOAT,
 	TERM_BOOL,
+	TERM_LITERAL_LIST,
 	TERM_NULL
 } term_type_t;
 
@@ -110,8 +112,9 @@ typedef struct expr_node_t {
 		float  val_f;
 		char   val_b;
 		char  *val_s;
-		struct column_ref_t *column_ref;
-		struct expr_node_t  *left;
+		struct column_ref_t  *column_ref;
+		struct expr_node_t   *left;
+		struct linked_list_t *literal_list;
 	};
 	struct expr_node_t *right;
 	operator_type_t op;

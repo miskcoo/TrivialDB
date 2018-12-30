@@ -5,6 +5,7 @@
 
 void expression::dump_exprnode(std::ostream &os, const expr_node_t *expr)
 {
+	int count = 0;
 	os << expr->op << " ";
 	if(expr->op == OPERATOR_NONE)
 	{
@@ -35,6 +36,13 @@ void expression::dump_exprnode(std::ostream &os, const expr_node_t *expr)
 					os << 1 << " "
 					   << expr->column_ref->column << " ";
 				}
+				break;
+			case TERM_LITERAL_LIST:
+				for(linked_list_t *l_ptr = expr->literal_list; l_ptr; l_ptr = l_ptr->next)
+					++count;
+				os << count << " ";
+				for(linked_list_t *l_ptr = expr->literal_list; l_ptr; l_ptr = l_ptr->next)
+					dump_exprnode(os, (expr_node_t*)l_ptr->data);
 				break;
 			default:
 				assert(0);
@@ -92,6 +100,17 @@ expr_node_t* expression::load_exprnode(std::istream &is)
 				} else {
 					expr->column_ref->table = nullptr;
 					expr->column_ref->column = load_string(is);
+				}
+				break;
+			case TERM_LITERAL_LIST:
+				is >> tmp;
+				expr->literal_list = NULL;
+				for(int i = 0; i != tmp; ++i)
+				{
+					linked_list_t *l_ptr = (linked_list_t*)malloc(sizeof(linked_list_t));
+					l_ptr->next = expr->literal_list;
+					l_ptr->data = load_exprnode(is);
+					expr->literal_list = l_ptr;
 				}
 				break;
 			default:

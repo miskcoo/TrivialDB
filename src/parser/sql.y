@@ -61,13 +61,13 @@ void yyerror(const char *s);
 %type <table_def> create_table_stmt
 %type <column_ref> column_ref
 %type <constraint> table_extra_option
-%type <list> column_list expr_list insert_values
+%type <list> column_list expr_list insert_values literal_list
 %type <list> table_extra_options table_extra_option_list
 %type <insert_info> insert_stmt insert_columns
 %type <update_info> update_stmt
 %type <delete_info> delete_stmt
 %type <select_info> select_stmt
-%type <expr> expr factor term condition cond_term where_clause literal
+%type <expr> expr factor term condition cond_term where_clause literal literal_list_expr
 %type <expr> aggregate_expr aggregate_term select_expr default_expr
 %type <val_i> logical_op compare_op aggregate_op
 %type <list> select_expr_list select_expr_list_s table_refs
@@ -374,8 +374,11 @@ cond_term  : expr compare_op expr {
 				$$->right = $3;
 				$$->op    = $2;
 		   }
-		   | expr IN '(' expr_list ')' {
-		   		/* TODO: fill this */
+		   | expr IN '(' literal_list_expr ')' {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $1;
+				$$->right = $4;
+				$$->op    = OPERATOR_IN;
 		   }
 		   | expr IS NULL_TOKEN {
 		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
@@ -486,6 +489,24 @@ literal    : INT_LITERAL {
 				$$->term_type  = TERM_STRING;
 		   }
 		   ;
+
+literal_list : literal_list ',' literal {
+				$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+				$$->data = $3;
+				$$->next = $1;
+			 }
+			 | literal {
+				$$ = (linked_list_t*)malloc(sizeof(linked_list_t));
+				$$->data = $1;
+				$$->next = NULL;
+			 }
+			 ;
+
+literal_list_expr : literal_list {
+					$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+					$$->literal_list = $1;
+					$$->term_type    = TERM_LITERAL_LIST;
+				  }
 
 table_name : IDENTIFIER          { $$ = $1; }
 		   | '`' IDENTIFIER '`'  { $$ = $2; }

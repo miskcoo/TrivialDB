@@ -3,6 +3,7 @@
 #include "execute.h"
 #include "../database/dbms.h"
 #include "../table/table_header.h"
+#include "../expression/expression.h"
 
 template<typename T, typename DataDeleter>
 void free_linked_list(linked_list_t *linked_list, DataDeleter data_deleter)
@@ -15,6 +16,38 @@ void free_linked_list(linked_list_t *linked_list, DataDeleter data_deleter)
 		l_ptr = l_ptr->next;
 		free(tmp);
 	}
+}
+
+void expression::free_exprnode(expr_node_t *expr)
+{
+	if(!expr) return;
+	if(expr->op == OPERATOR_NONE)
+	{
+		switch(expr->term_type)
+		{
+			case TERM_STRING:
+				free(expr->val_s);
+				break;
+			case TERM_COLUMN_REF:
+				free(expr->column_ref->table);
+				free(expr->column_ref->column);
+				free(expr->column_ref);
+				break;
+			case TERM_LITERAL_LIST:
+				free_linked_list<expr_node_t>(
+					expr->literal_list,
+					expression::free_exprnode
+				);
+				break;
+			default:
+				break;
+		}
+	} else {
+		free_exprnode(expr->left);
+		free_exprnode(expr->right);
+	}
+
+	free(expr);
 }
 
 void free_column_ref(column_ref_t *cref)
