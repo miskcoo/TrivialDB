@@ -28,6 +28,7 @@ public:
 	void create(const char *db_name);
 	void drop();
 	void close();
+	const char *get_name() { return info.db_name; }
 
 	table_manager *get_table(const char *name);
 	table_manager *get_table(int id);

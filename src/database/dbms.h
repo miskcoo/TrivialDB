@@ -21,6 +21,8 @@ public:
 	void create_database(const char *db_name);
 
 	void create_table(const table_header_t *header);
+	void show_table(const char *table_name);
+	void drop_table(const char *table_name);
 
 	void create_index(const char *tb_name, const char *col_name);
 	void drop_index(const char *tb_name, const char *col_name);
@@ -29,8 +31,6 @@ public:
 	void delete_rows(const delete_info_t *info);
 	void select_rows(const select_info_t *info);
 	void update_rows(const update_info_t *info);
-
-	void show_table(const char *table_name);
 
 	void select_rows_aggregate(
 		const select_info_t *info,

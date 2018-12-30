@@ -113,7 +113,8 @@ void execute_show_database(const char *db_name)
 
 void execute_drop_table(const char *table_name)
 {
-	printf("[drop] table name = %s\n", table_name);
+	dbms::get_instance()->drop_table(table_name);
+	free((void*)table_name);
 }
 
 void execute_show_table(const char *table_name)

@@ -43,6 +43,7 @@ public:
 	~table_manager() { if(is_open) close(); }
 	bool create(const char *table_name, const table_header_t *header);
 	bool open(const char *table_name);
+	void drop();
 	void close();
 
 	int lookup_column(const char *col_name);

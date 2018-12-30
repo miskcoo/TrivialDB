@@ -75,7 +75,19 @@ void database::create_table(const table_header_t *header)
 
 void database::drop()
 {
-	// TODO: fill this function
+	assert(is_opened());
+	for(int i = 0; i != info.table_num; ++i)
+	{
+		tables[i]->drop();
+		delete tables[i];
+		tables[i] = nullptr;
+	}
+
+	info.table_num = 0;
+	std::string filename = info.db_name;
+	filename += ".database";
+	close();
+	std::remove(filename.c_str());
 }
 
 table_manager* database::get_table(const char *name)
@@ -115,7 +127,16 @@ void database::drop_table(const char *name)
 		return;
 	}
 
-	// TODO: drop table
+	--info.table_num;
+	tables[id]->drop();
+	delete tables[id];
+	for(int i = id; i < info.table_num; ++i)
+	{
+		tables[i] = tables[i + 1];
+		std::strcpy(info.table_name[i], info.table_name[i + 1]);
+	}
+
+	tables[info.table_num] = nullptr;
 }
 
 void database::show_info()

@@ -255,6 +255,16 @@ void dbms::create_database(const char *db_name)
 
 void dbms::drop_database(const char *db_name)
 {
+	if(cur_db && std::strcmp(cur_db->get_name(), db_name) == 0)
+	{
+		cur_db->close();
+		delete cur_db;
+		cur_db = nullptr;
+	}
+
+	database db;
+	db.open(db_name);
+	db.drop();
 }
 
 void dbms::show_database(const char *db_name)
@@ -262,6 +272,12 @@ void dbms::show_database(const char *db_name)
 	database db;
 	db.open(db_name);
 	db.show_info();
+}
+
+void dbms::drop_table(const char *table_name)
+{
+	if(assert_db_open())
+		cur_db->drop_table(table_name);
 }
 
 void dbms::show_table(const char* table_name)
