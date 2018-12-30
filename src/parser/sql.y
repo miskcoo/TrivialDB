@@ -67,8 +67,8 @@ void yyerror(const char *s);
 %type <update_info> update_stmt
 %type <delete_info> delete_stmt
 %type <select_info> select_stmt
-%type <expr> expr factor term condition cond_term where_clause
-%type <expr> aggregate_expr aggregate_term select_expr
+%type <expr> expr factor term condition cond_term where_clause literal
+%type <expr> aggregate_expr aggregate_term select_expr default_expr
 %type <val_i> logical_op compare_op aggregate_op
 %type <list> select_expr_list select_expr_list_s table_refs
 %type <join_info> table_item
@@ -312,15 +312,19 @@ table_fields : table_field                  { $$ = $1; }
 			 | table_fields ',' table_field { $$ = $3; $$->next = $1; }
 			 ;
 
-table_field  : IDENTIFIER field_type field_width field_flags {
+table_field  : IDENTIFIER field_type field_width field_flags default_expr {
 			 	$$ = (field_item_t*)malloc(sizeof(field_item_t));
 				$$->name = $1;
 				$$->type = $2;
 				$$->width = $3;
 				$$->flags = $4;
+				$$->default_value = $5;
 				$$->next = NULL;
 			 }
 			 ;
+
+default_expr : DEFAULT literal { $$ = $2; }
+			 | /* empty */     { $$ = NULL; }
 
 field_flags : field_flags field_flag  { $$ = $1 | $2; }
 			| /* empty */             { $$ = 0; }
@@ -448,7 +452,20 @@ term       : column_ref {
 				$$->column_ref = $1;
 				$$->term_type  = TERM_COLUMN_REF;
 		   }
-		   | INT_LITERAL {
+		   | '-' term {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->left  = $2;
+				$$->op    = OPERATOR_NEGATE;
+		   }
+		   | literal      { $$ = $1; }
+		   | NULL_TOKEN {
+		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
+				$$->term_type  = TERM_NULL;
+		   }
+		   | '(' expr ')' { $$ = $2; }
+		   ;
+
+literal    : INT_LITERAL {
 		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
 				$$->val_i      = $1;
 				$$->term_type  = TERM_INT;
@@ -468,16 +485,6 @@ term       : column_ref {
 				$$->val_s      = $1;
 				$$->term_type  = TERM_STRING;
 		   }
-		   | NULL_TOKEN {
-		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
-				$$->term_type  = TERM_NULL;
-		   }
-		   | '-' term {
-		   		$$ = (expr_node_t*)calloc(1, sizeof(expr_node_t));
-				$$->left  = $2;
-				$$->op    = OPERATOR_NEGATE;
-		   }
-		   | '(' expr ')' { $$ = $2; }
 		   ;
 
 table_name : IDENTIFIER          { $$ = $1; }

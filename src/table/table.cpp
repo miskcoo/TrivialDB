@@ -233,10 +233,21 @@ bool table_manager::set_temp_record(int col, const void *data)
 
 void table_manager::init_temp_record()
 {
-	// TODO: add default values
 	std::memset(tmp_record, 0, tmp_record_size);
 	*tmp_null_mark = (1u << header.col_num) - 1;
 	*tmp_null_mark &= ~(1u << header.main_index);
+	*tmp_null_mark &= ~header.flag_default;
+	for(int i = 0; i != header.col_num; ++i)
+	{
+		if(header.flag_default & (1u << i))
+		{
+			std::memcpy(
+				tmp_record + header.col_offset[i],
+				header.default_values[i], 
+				header.col_length[i]
+			);
+		}
+	}
 }
 
 int table_manager::insert_record()

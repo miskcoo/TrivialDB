@@ -80,6 +80,7 @@ typedef struct field_item_t {
 	char *name;
 	int type, width, flags;
 	struct field_item_t *next;
+	struct expr_node_t *default_value;
 } field_item_t;
 
 typedef struct linked_list_t {

@@ -46,6 +46,7 @@ void execute_create_table(const table_def_t *table)
 	{
 		field_item_t *tmp = it;
 		free(it->name);
+		expression::free_exprnode(it->default_value);
 		it = it->next;
 		free(tmp);
 	}

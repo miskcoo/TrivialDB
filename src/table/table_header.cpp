@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <sstream>
 #include "table_header.h"
+#include "../utils/type_cast.h"
 #include "../expression/expression.h"
 #include "../parser/defs.h"
 
@@ -46,6 +47,25 @@ bool fill_table_header(table_header_t *header, const table_def_t *table)
 			header->flag_primary |= 1 << index;
 		if(field->flags & FIELD_FLAG_UNIQUE)
 			header->flag_unique |= 1 << index;
+		if(field->default_value != nullptr)
+		{
+			if(header->col_length[index] > MAX_DEFAULT_LEN)
+			{
+				std::fprintf(stderr, "[Error] Field too long to have default value.\n");
+				return false;
+			}
+
+			header->flag_default |= 1 << index;
+			expression expr = expression::eval(field->default_value);
+			auto desired_type = typecast::column_to_term(header->col_type[index]);
+			char *data = typecast::expr_to_db(expr, desired_type);
+			if(desired_type == TERM_STRING)
+			{
+				std::strcpy(header->default_values[index], data);
+			} else {
+				std::memcpy(header->default_values[index], data, header->col_length[index]);
+			}
+		}
 	}
 
 	auto lookup_column = [&](const char *name) -> int {
