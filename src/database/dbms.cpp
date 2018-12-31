@@ -8,6 +8,11 @@
 #include <vector>
 #include <limits>
 
+struct __cache_clear_guard
+{
+	~__cache_clear_guard() { expression::cache_clear(); }
+};
+
 dbms::dbms()
 	: output_file(stdout), cur_db(nullptr)
 {
@@ -314,6 +319,7 @@ void dbms::update_rows(const update_info_t *info)
 	if(!assert_db_open())
 		return;
 
+	__cache_clear_guard __guard;
 	table_manager *tm = cur_db->get_table(info->table);
 	if(tm == nullptr)
 	{
@@ -348,7 +354,6 @@ void dbms::update_rows(const update_info_t *info)
 	} catch(...) {
 	}
 
-	expression::cache_clear();
 	std::printf("[Info] %d row(s) updated, %d row(s) failed.\n",
 			succ_count, fail_count);
 }
@@ -357,6 +362,8 @@ void dbms::select_rows(const select_info_t *info)
 {
 	if(!assert_db_open())
 		return;
+
+	__cache_clear_guard __guard;
 	
 	// get required tables
 	std::vector<table_manager*> required_tables;
@@ -410,7 +417,6 @@ void dbms::select_rows(const select_info_t *info)
 			expr_names
 		);
 
-		expression::cache_clear();
 		return;
 	}
 
@@ -475,7 +481,6 @@ void dbms::select_rows(const select_info_t *info)
 		}
 	);
 
-	expression::cache_clear();
 	std::printf("[Info] %d row(s) selected.\n", counter);
 	std::fprintf(output_file, "\n");
 	std::fflush(output_file);
@@ -600,6 +605,7 @@ void dbms::delete_rows(const delete_info_t *info)
 {
 	if(!assert_db_open())
 		return;
+	__cache_clear_guard __guard;
 
 	std::vector<int> delete_list;
 	table_manager *tm = cur_db->get_table(info->table);
@@ -618,7 +624,6 @@ void dbms::delete_rows(const delete_info_t *info)
 	int counter = 0;
 	for(int rid : delete_list)
 		counter += tm->remove_record(rid);
-	expression::cache_clear();
 	std::printf("[Info] %d row(s) deleted.\n", counter);
 }
 
@@ -626,6 +631,8 @@ void dbms::insert_rows(const insert_info_t *info)
 {
 	if(!assert_db_open())
 		return;
+	__cache_clear_guard __guard;
+
 	table_manager *tb = cur_db->get_table(info->table);
 	if(tb == nullptr)
 	{
