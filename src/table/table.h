@@ -76,8 +76,10 @@ public:
 	btree_iterator<int_btree::leaf_page> get_record_iterator_lower_bound(int rid);
 	// get the record R such that R.rid = rid
 	record_manager get_record_ptr(int rid, bool dirty=false);
-	void dump_record(int rid);
-	void dump_record(record_manager *rm);
+
+	void dump_header(FILE *f);
+	void dump_record(FILE *f, int rid);
+	void dump_record(FILE *f, record_manager *rm);
 
 private:
 	bool check_constraints(const char *buf);

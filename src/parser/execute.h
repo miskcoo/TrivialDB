@@ -20,6 +20,7 @@ void execute_select(const select_info_t *select_info);
 void execute_update(const update_info_t *update_info);
 void execute_create_index(const char *table_name, const char *col_name);
 void execute_drop_index(const char *table_name, const char *col_name);
+void execute_switch_output(const char *output_filename);
 void execute_quit();
 
 #ifdef __cplusplus

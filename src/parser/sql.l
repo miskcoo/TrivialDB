@@ -24,6 +24,7 @@ update|UPDATE    { return UPDATE; }
 delete|DELETE    { return DELETE; }
 show|SHOW        { return SHOW; }
 set|SET          { return SET; }
+output|OUTPUT    { return OUTPUT; }
 
 database|DATABASE   { return DATABASE; }
 table|TABLE         { return TABLE; }

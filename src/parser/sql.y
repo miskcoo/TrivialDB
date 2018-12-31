@@ -39,7 +39,7 @@ void yyerror(const char *s);
 %token INTO FROM WHERE VALUES JOIN INNER OUTER
 %token LEFT RIGHT FULL ASC DESC ORDER BY IN ON AS
 %token DISTINCT GROUP USING INDEX TABLE DATABASE
-%token DEFAULT UNIQUE PRIMARY FOREIGN REFERENCES CHECK KEY
+%token DEFAULT UNIQUE PRIMARY FOREIGN REFERENCES CHECK KEY OUTPUT
 %token USE CREATE DROP SELECT INSERT UPDATE DELETE SHOW SET EXIT
 
 %token IDENTIFIER
@@ -93,6 +93,7 @@ sql_stmt   :  create_table_stmt ';'    { execute_create_table($1); }
 		   |  delete_stmt ';'          { execute_delete($1); }
 		   |  select_stmt ';'          { execute_select($1); }
 		   |  EXIT ';'                 { execute_quit(); exit(0); }
+		   |  SET OUTPUT '=' STRING_LITERAL ';'  { execute_switch_output($4); }
 		   |  CREATE INDEX table_name '(' IDENTIFIER ')' ';' { execute_create_index($3, $5); }
 		   |  DROP   INDEX table_name '(' IDENTIFIER ')' ';' { execute_drop_index($3, $5); }
 		   ;

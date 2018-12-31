@@ -345,23 +345,32 @@ record_manager table_manager::get_record_ptr(int rid, bool dirty)
 	else return record_manager(pg.get());
 }
 
-void table_manager::dump_record(int rid)
+void table_manager::dump_header(FILE *f)
 {
-	record_manager rec = get_record_ptr(rid);
-	dump_record(&rec);
+	for(int i = 0; i < header.col_num - 1; ++i)
+	{
+		if(i != 0) std::fprintf(f, ",");
+		std::fprintf(f, "%s.%s", header.table_name, header.col_name[i]);
+	}
 }
 
-void table_manager::dump_record(record_manager *rm)
+void table_manager::dump_record(FILE *f, int rid)
+{
+	record_manager rec = get_record_ptr(rid);
+	dump_record(f, &rec);
+}
+
+void table_manager::dump_record(FILE *f, record_manager *rm)
 {
 	rm->seek(0);
 	rm->read(tmp_cache, tmp_record_size);
 	int null_mark = ((int*)tmp_cache)[1];
-	for(int i = 0; i < header.col_num; ++i)
+	for(int i = 0; i < header.col_num - 1; ++i)
 	{
-		std::printf("%s.%s\t= ", header.table_name, header.col_name[i]);
+		if(i != 0) std::fprintf(f, ",");
 		if(null_mark & (1u << i))
 		{
-			std::puts("NULL");
+			std::fprintf(f, "NULL");
 			continue;
 		}
 
@@ -369,20 +378,20 @@ void table_manager::dump_record(record_manager *rm)
 		switch(header.col_type[i])
 		{
 			case COL_TYPE_INT:
-				std::printf("%d\n", *(int*)buf);
+				std::fprintf(f, "%d", *(int*)buf);
 				break;
 			case COL_TYPE_FLOAT:
-				std::printf("%f\n", *(float*)buf);
+				std::fprintf(f, "%f", *(float*)buf);
 				break;
 			case COL_TYPE_VARCHAR:
-				std::printf("%s\n", buf);
+				std::fprintf(f, "%s", buf);
 				break;
 			case COL_TYPE_DATE: {
 				char date_buf[32];
 				time_t time = *(int*)buf;
 				auto tm = std::localtime(&time);
 				std::strftime(date_buf, 32, DATE_TEMPLATE, tm);
-				std::printf("%s\n", date_buf);
+				std::fprintf(f, "%s", date_buf);
 				break; }
 			default:
 				debug_puts("[Error] Data type not supported!");

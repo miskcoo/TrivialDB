@@ -59,6 +59,13 @@ void free_column_ref(column_ref_t *cref)
 }
 
 bool fill_table_header(table_header_t *header, const table_def_t *table);
+
+void execute_switch_output(const char *output_filename)
+{
+	dbms::get_instance()->switch_select_output(output_filename);
+	free((void*)output_filename);
+}
+
 void execute_create_table(const table_def_t *table)
 {
 	table_header_t *header = new table_header_t;

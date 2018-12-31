@@ -4,9 +4,11 @@
 #include "../table/table.h"
 #include "../parser/defs.h"
 #include "../expression/expression.h"
+#include <cstdio>
 
 class dbms
 {
+	FILE *output_file;
 	database *cur_db;
 private:
 	dbms();
@@ -31,6 +33,8 @@ public:
 	void delete_rows(const delete_info_t *info);
 	void select_rows(const select_info_t *info);
 	void update_rows(const update_info_t *info);
+
+	void switch_select_output(const char *filename);
 
 	void select_rows_aggregate(
 		const select_info_t *info,

@@ -9,13 +9,22 @@
 #include <limits>
 
 dbms::dbms()
-	: cur_db(nullptr)
+	: output_file(stdout), cur_db(nullptr)
 {
 }
 
 dbms::~dbms()
 {
 	close_database();
+}
+
+void dbms::switch_select_output(const char *filename)
+{
+	if(output_file != stdout)
+		std::fclose(output_file);
+	if(std::strcmp(filename, "stdout") == 0)
+		output_file = stdout;
+	else output_file = std::fopen(filename, "a");
 }
 
 template<typename Callback>
@@ -385,9 +394,26 @@ void dbms::select_rows(const select_info_t *info)
 		return;
 	}
 
+	// output header info
+	for(size_t i = 0; i < exprs.size(); ++i)
+	{
+		if(i != 0) std::fprintf(output_file, ",");
+		std::fprintf(output_file, "%s", expr_names[i].c_str());
+	}
+
+	if(exprs.size() == 0)
+	{
+		for(size_t i = 0; i < required_tables.size(); ++i)
+		{
+			if(i != 0) std::fprintf(output_file, ",");
+			required_tables[i]->dump_header(output_file);
+		}
+	}
+
+	std::fprintf(output_file, "\n");
+
 	// iterate records
 	int counter = 0;
-	std::puts("========= SELECT =========");
 	iterate(required_tables, info->where,
 		[&](const std::vector<table_manager*> &tables,
 			const std::vector<record_manager*> &records,
@@ -402,30 +428,31 @@ void dbms::select_rows(const select_info_t *info)
 					std::fprintf(stderr, "%s\n", e);
 					return false;
 				}
-				std::printf("%s\t = ", expr_names[i].c_str());
+				// std::printf("%s\t = ", expr_names[i].c_str());
+				if(i != 0) std::putchar(',');
 				switch(ret.type)
 				{
 					case TERM_INT:
-						std::printf("%d\n", ret.val_i);
+						std::fprintf(output_file, "%d", ret.val_i);
 						break;
 					case TERM_FLOAT:
-						std::printf("%f\n", ret.val_f);
+						std::fprintf(output_file, "%f", ret.val_f);
 						break;
 					case TERM_STRING:
-						std::printf("%s\n", ret.val_s);
+						std::fprintf(output_file, "%s", ret.val_s);
 						break;
 					case TERM_BOOL:
-						std::printf("%s\n", ret.val_b ? "TRUE" : "FALSE");
+						std::fprintf(output_file, "%s", ret.val_b ? "TRUE" : "FALSE");
 						break;
 					case TERM_DATE: {
 						char date_buf[32];
 						time_t time = ret.val_i;
 						auto tm = std::localtime(&time);
 						std::strftime(date_buf, 32, DATE_TEMPLATE, tm);
-						std::printf("%s\n", date_buf);
+						std::fprintf(output_file, "%s", date_buf);
 						break; }
 					case TERM_NULL:
-						std::printf("NULL\n");
+						std::fprintf(output_file, "NULL");
 						break;
 					default:
 						debug_puts("[Error] Data type not supported!");
@@ -435,9 +462,9 @@ void dbms::select_rows(const select_info_t *info)
 			if(exprs.size() == 0)
 			{
 				for(size_t i = 0; i < tables.size(); ++i)
-					tables[i]->dump_record(records[i]);
+					tables[i]->dump_record(output_file, records[i]);
 			}
-			std::puts("----------------");
+			std::fprintf(output_file, "\n");
 			++counter;
 			return true;
 		}
@@ -445,15 +472,16 @@ void dbms::select_rows(const select_info_t *info)
 
 	expression::cache_clear();
 	std::printf("[Info] %d row(s) selected.\n", counter);
+	std::fprintf(output_file, "\n");
+	std::fflush(output_file);
 }
 
 void dbms::select_rows_aggregate(
 	const select_info_t *info,
 	const std::vector<table_manager*> &required_tables,
 	const std::vector<expr_node_t*> &exprs,
-	const std::vector<std::string> &expr_names)
+	const std::vector<std::string> &)
 {
-	std::puts("========= SELECT (aggregate) =========");
 	if(exprs.size() != 1)
 	{
 		std::fprintf(stderr, "[Error] Support only for one select expression for aggregate select.");
@@ -537,7 +565,7 @@ void dbms::select_rows_aggregate(
 
 	if(expr->op == OPERATOR_COUNT)
 	{
-		std::printf("%s\t = %d\n", expr_names[0].c_str(), counter);
+		std::fprintf(output_file, "%d\n", counter);
 	} else {
 		if(agg_type != TERM_FLOAT && agg_type != TERM_INT)
 		{
@@ -550,15 +578,17 @@ void dbms::select_rows_aggregate(
 			if(agg_type == TERM_INT)
 				val_f = double(val_i) / counter;
 			else val_f /= counter;
-			std::printf("%s\t = %f\n", expr_names[0].c_str(), val_f);
+			std::fprintf(output_file, "%f\n", val_f);
 		} else if(agg_type == TERM_FLOAT) {
-			std::printf("%s\t = %f\n", expr_names[0].c_str(), val_f);
+			std::fprintf(output_file, "%f\n", val_f);
 		} else if(agg_type == TERM_INT) {
-			std::printf("%s\t = %d\n", expr_names[0].c_str(), val_i);
+			std::fprintf(output_file, "%d\n", val_i);
 		}
 	}
 
 	std::printf("[Info] %d row(s) selected.\n", counter);
+	std::fprintf(output_file, "\n");
+	std::fflush(output_file);
 }
 
 void dbms::delete_rows(const delete_info_t *info)
