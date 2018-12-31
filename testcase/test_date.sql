@@ -1,5 +1,6 @@
 CREATE DATABASE db_date;
 USE db_date;
+SET OUTPUT = 'test_date.out';
 CREATE TABLE Persons (
     PersonID int,
 	Birthday date,

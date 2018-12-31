@@ -1,4 +1,5 @@
 CREATE DATABASE db_unique;
+SET OUTPUT = 'test_null.out';
 USE db_unique;
 CREATE TABLE Persons (
     PersonID int,

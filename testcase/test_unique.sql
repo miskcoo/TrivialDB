@@ -1,4 +1,5 @@
 CREATE DATABASE db_unique;
+SET OUTPUT = 'test_unique.out';
 USE db_unique;
 CREATE TABLE Persons (
     PersonID int UNIQUE,
@@ -26,5 +27,7 @@ INSERT INTO Persons VALUES
 SELECT * FROM Persons;
 
 UPDATE Persons SET PersonID = 4 WHERE Name = 'Person_4a';
+
+SELECT * FROM Persons;
 
 EXIT;

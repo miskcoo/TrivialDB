@@ -1,4 +1,5 @@
 CREATE DATABASE db;
+SET OUTPUT = 'test1.out';
 USE db;
 CREATE TABLE Persons (
     PersonID int PRIMARY KEY,

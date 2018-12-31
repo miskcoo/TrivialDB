@@ -1,4 +1,5 @@
 CREATE DATABASE db_primary;
+SET OUTPUT = 'test_check.out';
 USE db_primary;
 CREATE TABLE Persons (
     PersonID int,
@@ -23,5 +24,10 @@ INSERT INTO Persons VALUES
 	(24, 'Person24', NULL);
 
 SELECT * FROM Persons;
+
+UPDATE Persons SET PersonID = PersonID / 2;
+
+SELECT * FROM Persons;
+
 
 EXIT;

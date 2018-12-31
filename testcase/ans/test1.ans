@@ -1,0 +1,37 @@
+PersonID
+1000
+-238
+23
+
+Persons.City,Persons.Address,Persons.FirstName,Persons.LastName,Persons.PersonID
+Hunan,Hunan Univ.,Zhang,Wasserstein,1000
+Neijing,Beijing Univ.,Lei,Hilbert,-238
+Beijing,Tsinghua Univ.,Wang,Yi,23
+
+Persons.City,Persons.Address,Persons.FirstName,Persons.LastName,Persons.PersonID
+Hunan,Hunan Univ.,Zhang,Wasserstein,1000
+Beijing,Tsinghua Univ.,Wang,Yi,23
+EU,Unknwon.,D,Wasserstein,100002
+US,Unknown,C,Zarisk,100001
+
+Persons.City,Persons.Address,Persons.FirstName,Persons.LastName,Persons.PersonID
+
+Persons.City,Persons.Address,Persons.FirstName,Persons.LastName,Persons.PersonID
+NULL,NULL,NULL,Wasserstein,20
+NULL,NULL,NULL,1999-10-10,30
+NULL,NULL,NULL,Zarisk,10
+
+COUNT(*)
+3
+
+SUM(PersonID)
+60
+
+AVG(PersonID)
+20.000000
+
+LastName,PersonID
+Wasserstein,20
+1999-10-10,30
+Zarisk,10
+

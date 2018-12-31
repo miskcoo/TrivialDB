@@ -1,5 +1,6 @@
 CREATE DATABASE db_default;
 USE db_default;
+SET OUTPUT = 'test_default.out';
 CREATE TABLE Persons (
     PersonID int,
 	Birthday date DEFAULT '1999-03-12',

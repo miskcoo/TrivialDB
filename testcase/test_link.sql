@@ -1,4 +1,5 @@
 CREATE DATABASE db_link;
+SET OUTPUT = 'test_link.out';
 USE db_link;
 CREATE TABLE Persons (
     PersonID int PRIMARY KEY,

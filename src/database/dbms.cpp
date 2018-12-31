@@ -24,7 +24,7 @@ void dbms::switch_select_output(const char *filename)
 		std::fclose(output_file);
 	if(std::strcmp(filename, "stdout") == 0)
 		output_file = stdout;
-	else output_file = std::fopen(filename, "a");
+	else output_file = std::fopen(filename, "w");
 }
 
 template<typename Callback>
@@ -328,7 +328,7 @@ void dbms::update_rows(const update_info_t *info)
 		return;
 	}
 
-	int succ_count = 0;
+	int succ_count = 0, fail_count = 0;
 	try {
 		iterate_one_table(tm, info->where, [&](table_manager *tm, record_manager *, int rid) -> bool {
 			expression val = expression::eval(info->value);
@@ -337,8 +337,9 @@ void dbms::update_rows(const update_info_t *info)
 				throw "[Error] Incompatible data type.";
 			auto term_type = typecast::column_to_term(col_type);
 			bool ret = tm->modify_record(rid, col_id, typecast::expr_to_db(val, term_type));
-			if(!ret) return false;
-			succ_count++;
+			// if(!ret) return false;
+			succ_count += ret;
+			fail_count += 1 - ret;
 			return true;
 		} );
 	} catch(const char *msg) {
@@ -348,7 +349,8 @@ void dbms::update_rows(const update_info_t *info)
 	}
 
 	expression::cache_clear();
-	std::printf("[Info] %d row(s) updated.\n", succ_count);
+	std::printf("[Info] %d row(s) updated, %d row(s) failed.\n",
+			succ_count, fail_count);
 }
 
 void dbms::select_rows(const select_info_t *info)
@@ -381,19 +383,6 @@ void dbms::select_rows(const select_info_t *info)
 		expr_names.push_back(expression::to_string(expr));
 	}
 
-	if(is_aggregate)
-	{
-		select_rows_aggregate(
-			info,
-			required_tables,
-			exprs,
-			expr_names
-		);
-
-		expression::cache_clear();
-		return;
-	}
-
 	// output header info
 	for(size_t i = 0; i < exprs.size(); ++i)
 	{
@@ -412,6 +401,19 @@ void dbms::select_rows(const select_info_t *info)
 
 	std::fprintf(output_file, "\n");
 
+	if(is_aggregate)
+	{
+		select_rows_aggregate(
+			info,
+			required_tables,
+			exprs,
+			expr_names
+		);
+
+		expression::cache_clear();
+		return;
+	}
+
 	// iterate records
 	int counter = 0;
 	iterate(required_tables, info->where,
@@ -429,7 +431,7 @@ void dbms::select_rows(const select_info_t *info)
 					return false;
 				}
 				// std::printf("%s\t = ", expr_names[i].c_str());
-				if(i != 0) std::putchar(',');
+				if(i != 0) std::fprintf(output_file, ",");
 				switch(ret.type)
 				{
 					case TERM_INT:
@@ -462,7 +464,10 @@ void dbms::select_rows(const select_info_t *info)
 			if(exprs.size() == 0)
 			{
 				for(size_t i = 0; i < tables.size(); ++i)
+				{
+					if(i != 0) std::fprintf(output_file, ",");
 					tables[i]->dump_record(output_file, records[i]);
+				}
 			}
 			std::fprintf(output_file, "\n");
 			++counter;
