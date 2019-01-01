@@ -123,6 +123,7 @@ char* page_fs::read(int file_id, int page_id, int& index)
 		cm.access(index);
 		dirty[index] = 0;
 		page2index[key] = index;
+		assert(!index2page[index].first && !index2page[index].second);
 		index2page[index] = key;
 
 		std::fseek(files[file_id], (long)PAGE_SIZE * page_id, SEEK_SET);
@@ -151,11 +152,14 @@ void page_fs::free_last_cache()
 {
 	int last = cm.last();
 	file_page_t key = index2page[last];
-	if(key.first != 0 && dirty[last])
+	if(key.first != 0)
 	{
-		debug_printf("Free cache and writeback: fid = %d, pid = %d\n", key.first, key.second);
+		if(dirty[last])
+		{
+			debug_printf("Free cache and writeback: fid = %d, pid = %d\n", key.first, key.second);
+			write_page_to_file(key.first, key.second, buffer + last * PAGE_SIZE);
+		}
 
-		write_page_to_file(key.first, key.second, buffer + last * PAGE_SIZE);
 		page2index.erase(page2index.find(key));
 		index2page[last] = { 0, 0 };
 	}

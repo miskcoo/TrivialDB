@@ -60,13 +60,17 @@ public:
 		const std::vector<table_manager*> &table_list,
 		std::vector<record_manager*> &record_list,
 		std::vector<int> &rid_list,
-		expr_node_t *cond, Callback callback, int now = 0);
+		std::vector<std::vector<expr_node_t*>> &index_cond,
+		int *iter_order, int *index_cid, index_manager** index,
+		expr_node_t *cond, Callback callback, int now);
 	template<typename Callback>
 	void iterate_many_tables(
 		const std::vector<table_manager*> &table_list,
 		expr_node_t *cond, Callback callback);
 
 	static expr_node_t *get_join_cond(expr_node_t *cond);
+	static void extract_and_cond(expr_node_t *cond, std::vector<expr_node_t*> &and_cond);
+	static bool find_longest_path(int now, int depth, int *mark, int *path, std::vector<std::vector<int>> &E, int excepted_len, int &max_depth);
 
 public:
 	static dbms* get_instance()

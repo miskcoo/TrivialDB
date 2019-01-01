@@ -17,6 +17,7 @@ public:
 	std::pair<int, index_leaf_page> split(int cur_id)
 	{
 		auto pw = fixed_page<T>::split(cur_id);
+		auto page = *reinterpret_cast<index_leaf_page*>(&pw.second);
 		return { pw.first,
 			*reinterpret_cast<index_leaf_page*>(&pw.second)
 		};

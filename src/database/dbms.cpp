@@ -7,6 +7,7 @@
 #include "../table/record.h"
 #include <vector>
 #include <limits>
+#include <algorithm>
 
 struct __cache_clear_guard
 {
@@ -180,6 +181,17 @@ void dbms::iterate_one_table(
 	}
 }
 
+void dbms::extract_and_cond(expr_node_t *cond, std::vector<expr_node_t*> &and_cond)
+{
+	if(cond->op == OPERATOR_AND)
+	{
+		extract_and_cond(cond->left, and_cond);
+		extract_and_cond(cond->right, and_cond);
+	} else {
+		and_cond.push_back(cond);
+	}
+}
+
 template<typename Callback>
 void dbms::iterate_many_tables(
 	const std::vector<table_manager*> &table_list,
@@ -187,7 +199,159 @@ void dbms::iterate_many_tables(
 {
 	std::vector<record_manager*> record_list(table_list.size());
 	std::vector<int> rid_list(table_list.size());
-	iterate_many_tables_impl(table_list, record_list, rid_list, cond, callback, 0);
+	std::vector<expr_node_t*> and_cond;
+	extract_and_cond(cond, and_cond);
+	auto lookup_table = [&](const char *name) {
+		for(int i = 0; i < (int)table_list.size(); ++i)
+			if(std::strcmp(name, table_list[i]->get_table_name()) == 0)
+				return i;
+		return -1;
+	};
+
+	// edge
+	std::vector<std::vector<int>> E(table_list.size());
+	// join cond
+	std::vector<std::vector<expr_node_t*>> J(table_list.size());
+	for(auto &v : E) v.resize(table_list.size());
+	for(auto &v : J) v.resize(table_list.size());
+
+	// setup join condition graph
+	for(expr_node_t *c : and_cond)
+	{
+		if(c->op == OPERATOR_EQ && 
+				c->left->term_type == TERM_COLUMN_REF &&
+				c->right->term_type == TERM_COLUMN_REF)
+		{
+			int tid1 = lookup_table(c->left->column_ref->table);
+			int tid2 = lookup_table(c->right->column_ref->table);
+			if(tid1 == -1 || tid2 == -1)
+			{
+				std::fprintf(stderr, "[Error] Table not found!\n");
+				return;
+			}
+
+			table_manager *tb1 = table_list[tid1];
+			table_manager *tb2 = table_list[tid2];
+
+			int cid1 = tb1->lookup_column(c->left->column_ref->column);
+			int cid2 = tb2->lookup_column(c->right->column_ref->column);
+			if(cid1 == -1 || cid2 == -1)
+			{
+				std::fprintf(stderr, "[Error] Column not found!\n");
+				return;
+			}
+
+			index_manager *idx1 = tb1->get_index(cid1);
+			index_manager *idx2 = tb2->get_index(cid2);
+			if(!idx1 && !idx2)
+				continue;
+
+			if(idx2)
+			{
+				E[tid2][tid1] = 1;
+				J[tid2][tid1] = c;
+			}
+			
+			if(idx1)
+			{
+				E[tid1][tid2] = 1;
+				J[tid1][tid2] = c;
+			}
+		}
+	}
+
+	// find the longest path
+	int *mark = new int[table_list.size()];
+	int *path = new int[table_list.size()];
+	int max_depth = 0, start = 0;
+	for(int i = 0; i < (int)table_list.size(); ++i)
+	{
+		int m = 0;
+		std::memset(mark, 0, table_list.size() * sizeof(int));
+		find_longest_path(i, 0, mark, path, E, ~0u >> 1, m);
+		if(m > max_depth)
+		{
+			max_depth = m;
+			start = i;
+		}
+	}
+
+	int _;
+	std::memset(mark, 0, table_list.size() * sizeof(int));
+	_ = find_longest_path(start, 0, mark, path, E, max_depth, _);
+	assert(_);
+
+	// generate iteration sequence
+	std::memset(mark, 0, table_list.size() * sizeof(int));
+	for(int i = 0; i <= max_depth; ++i)
+		mark[path[i]] = 1;
+
+	int cur = max_depth, len = table_list.size();
+	for(int i = 0; i < len; ++i)
+		if(!mark[i])
+			path[++cur] = i;
+
+	// setup iteration variable
+	index_manager **index_ref = new index_manager*[len];
+	int *index_cid = new int[len];
+	std::fill(index_ref, index_ref + len, nullptr);
+	std::fill(index_cid, index_cid + len, -1);
+
+	for(int i = 0; i < max_depth; ++i)
+	{
+		expr_node_t *join_node = J[path[i]][path[i + 1]];
+		if(std::strcmp(join_node->left->column_ref->table, table_list[path[i]]->get_table_name()) == 0)
+		{
+			index_cid[i] = table_list[path[i + 1]]->lookup_column(
+					join_node->right->column_ref->column);
+			index_ref[i] = table_list[path[i]]->get_index(
+					table_list[path[i]]->lookup_column(
+						join_node->left->column_ref->column)
+					);
+		} else {
+			index_cid[i] = table_list[path[i + 1]]->lookup_column(
+					join_node->left->column_ref->column);
+			index_ref[i] = table_list[path[i]]->get_index(
+					table_list[path[i]]->lookup_column(
+						join_node->right->column_ref->column)
+					);
+		}
+
+		assert(index_ref[i]);
+	}
+
+	iterate_many_tables_impl(
+		table_list, record_list, rid_list,
+		J, path, index_cid, index_ref,
+		cond, callback, len - 1);
+
+	// debug info
+	std::printf("[Info] Iteration order: ");
+	for(int i = 0; i < len; ++i)
+	{
+		if(i != 0) std::printf(", ");
+		std::printf("%s", table_list[path[len - i - 1]]->get_table_name());
+	}
+
+	std::printf("\n[Info] Index use: ");
+	for(int i = 0; i < max_depth; ++i)
+	{
+		if(i != 0) std::printf(", ");
+		expr_node_t *node = J[path[i]][path[i + 1]];
+		std::printf("%s.%s-%s.%s",
+			node->left->column_ref->table,
+			node->left->column_ref->column,
+			node->right->column_ref->table,
+			node->right->column_ref->column
+		);
+	}
+
+	std::puts("");
+
+	delete []mark;
+	delete []path;
+	delete []index_cid;
+	delete []index_ref;
 }
 
 template<typename Callback>
@@ -195,9 +359,11 @@ bool dbms::iterate_many_tables_impl(
 	const std::vector<table_manager*> &table_list,
 	std::vector<record_manager*> &record_list,
 	std::vector<int> &rid_list,
+	std::vector<std::vector<expr_node_t*>> &index_cond,
+	int *iter_order, int *index_cid, index_manager** index,
 	expr_node_t *cond, Callback callback, int now)
 {
-	if(now == (int)table_list.size())
+	if(now < 0)
 	{
 		if(cond)
 		{
@@ -217,20 +383,56 @@ bool dbms::iterate_many_tables_impl(
 			return false;  // stop
 		return true;  // continue
 	} else {
-		auto it = table_list[now]->get_record_iterator_lower_bound(0);
-		for(; !it.is_end(); it.next())
+		if(!index[now])
 		{
-			record_manager rm(it.get_pager());
-			rm.open(it.get(), false);
-			rm.read(&rid_list[now], 4);
-			table_list[now]->cache_record(&rm);
-			record_list[now] = &rm;
-			bool ret = iterate_many_tables_impl(
-				table_list, record_list, rid_list,
-				cond, callback, now + 1
-			);
+			auto it = table_list[iter_order[now]]->get_record_iterator_lower_bound(0);
+			for(; !it.is_end(); it.next())
+			{
+				record_manager rm(it.get_pager());
+				rm.open(it.get(), false);
+				rm.read(&rid_list[iter_order[now]], 4);
+				// std::printf("%d\n", rid_list[iter_order[now]]);
+				table_list[iter_order[now]]->cache_record(&rm);
+				record_list[iter_order[now]] = &rm;
+				bool ret = iterate_many_tables_impl(
+					table_list, record_list, rid_list,
+					index_cond, iter_order, index_cid, index,
+					cond, callback, now - 1
+				);
 
-			if(!ret) return false;
+				if(!ret) return false;
+			}
+		} else {
+			const char *tb_col = table_list[iter_order[now + 1]]->get_cached_column(index_cid[now]);
+			table_manager *tb2 = table_list[iter_order[now]];
+			auto tb2_it = index[now]->get_iterator_lower_bound(tb_col);
+			for(; !tb2_it.is_end(); tb2_it.next())
+			{
+				int tb2_rid;
+				record_manager tb2_rm = tb2->open_record_from_index_lower_bound(tb2_it.get(), &tb2_rid);
+				tb2->cache_record(&tb2_rm);
+
+				bool join_ret = false;
+				try {
+					expr_node_t *join_cond = index_cond[iter_order[now]][iter_order[now + 1]];
+					join_ret = typecast::expr_to_bool(expression::eval(join_cond));
+				} catch(const char *msg) {
+					std::puts(msg);
+					return false;
+				}
+
+				if(!join_ret) break;
+
+				rid_list[iter_order[now]] = tb2_rid;
+				record_list[iter_order[now]] = &tb2_rm;
+				bool ret = iterate_many_tables_impl(
+					table_list, record_list, rid_list,
+					index_cond, iter_order, index_cid, index,
+					cond, callback, now - 1
+				);
+
+				if(!ret) return false;
+			}
 		}
 	}
 
@@ -743,6 +945,25 @@ expr_node_t *dbms::get_join_cond(expr_node_t *cond)
 	} else {
 		return nullptr;
 	}
+}
+
+bool dbms::find_longest_path(int now, int depth, int *mark, int *path, std::vector<std::vector<int>> &E, int excepted_len, int &max_depth)
+{
+	mark[now] = 1;
+	path[depth] = now;
+	if(depth > max_depth)
+		max_depth = depth;
+	if(depth == excepted_len)
+		return true;
+	for(int i = 0; i != (int)E.size(); ++i)
+	{
+		if(!E[now][i] || mark[i]) continue;
+		if(find_longest_path(i, depth + 1, mark, path, E, excepted_len, max_depth))
+			return true;
+	}
+
+	mark[now] = 0;
+	return false;
 }
 
 bool dbms::value_exists(const char *table, const char *column, const char *data)

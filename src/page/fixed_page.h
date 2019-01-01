@@ -133,8 +133,8 @@ std::pair<int, fixed_page<T>> fixed_page<T>::split(int cur_id)
 	int upper_size = size() - lower_size;
 	std::memcpy(
 		upper_page.children(),
-		children() + upper_size,
-		(size() - upper_size) * sizeof(int)
+		children() + (size() - upper_size),
+		upper_size * sizeof(int)
 	);
 
 	std::memcpy(
