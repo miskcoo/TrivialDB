@@ -133,10 +133,13 @@ CREATE TABLE Infos (
 \begin{minted}{sql}
 SELECT * FROM A, B, C WHERE A.ID = B.ID AND C.Name = A.Name
 \end{minted}
-并且，对于两个表的连接，如果连接的条件为两个列的相等，例如A.Col1 = B.Col2，那么如果这两个列的某一个拥有索引，会利用索引进行查询优化。例如如下查询就可以优化
-\begin{minted}{sql}
+并且，对于多个表的连接中形如A.Col1 = B.Col2的条件，那么如果这两个列的某一个拥有索引，会利用索引进行查询优化。例如如下查询就可以优化
+\begin{minted}[breaklines]{sql}
 SELECT * FROM Persons, Infos WHERE Persons.PersonID = Infos.PersonID;
+SELECT * FROM Persons, Infos, Datas WHERE Persons.PersonID = Infos.PersonID AND Datas.N IS NOT NULL;
+SELECT * FROM Persons, Infos, Datas WHERE Persons.PersonID = Infos.PersonID AND Datas.ID = Infos.PersonID;
 \end{minted}
+具体的优化方法以及何种查询可以优化见实现细节中``查询优化''。
 \section{底层数据结构}
 \subsection{页式文件系统}
 页式文件系统是最基本的结构，依赖于操作系统的文件管理。一个页的大小为4KB，一个文件的读写均按照页为单位。为了读写的效率，我们采用缓存机制，每次访问页后会缓存在内存中，并且写操作不会马上写入文件。缓存的替换方法为当其填满后会将最少访问的一个写回文件。
