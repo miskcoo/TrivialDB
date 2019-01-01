@@ -48,14 +48,14 @@ void dbms::iterate(
 			rid_list[0] = rid;
 			return callback(required_tables, rm_list, rid_list);
 		} );
-	} else if(required_tables.size() == 2) {
-		if(iterate_two_tables_with_joint_cond_equal(required_tables[0], required_tables[1], cond, callback))
-		{
-			std::puts("[Info] Join two tables using index.");
-		} else {
-			iterate_many_tables(required_tables, cond, callback);
-			std::puts("[Info] Join two tables by enumerating.");
-		}
+//	} else if(required_tables.size() == 2) {
+//		if(iterate_two_tables_with_joint_cond_equal(required_tables[0], required_tables[1], cond, callback))
+//		{
+//			std::puts("[Info] Join two tables using index.");
+//		} else {
+//			iterate_many_tables(required_tables, cond, callback);
+//			std::puts("[Info] Join two tables by enumerating.");
+//		}
 	} else {
 		iterate_many_tables(required_tables, cond, callback);
 		std::puts("[Info] Join many tables by enumerating.");
