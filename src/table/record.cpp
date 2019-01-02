@@ -15,7 +15,7 @@ void record_manager::open(int pid, int pos, bool dirty)
 	{
 		data_page<int> page { dirty ? pg->read_for_write(pid) : pg->read(pid), pg };
 		auto block = page.get_block(pos);
-		remain = block.first.size;
+		remain = block.first.size - sizeof(data_page<int>::block_header);
 		next_pid = block.first.ov_page;
 		cur_buf = block.second;
 	}
@@ -31,7 +31,7 @@ record_manager& record_manager::seek(int offset)
 		this->offset = 0;
 		data_page<int> page { dirty ? pg->read_for_write(pid) : pg->read(pid), pg };
 		auto block = page.get_block(pos);
-		remain = block.first.size;
+		remain = block.first.size - sizeof(data_page<int>::block_header);
 		next_pid = block.first.ov_page;
 		cur_buf = block.second;
 		forward(offset);
@@ -76,9 +76,8 @@ record_manager& record_manager::forward(int size)
 	remain -= size;
 	offset += size;
 	cur_buf += size;
-	while(remain < 0)
+	while(remain <= 0 && next_pid)
 	{
-		assert(next_pid > 0);
 		overflow_page page { dirty ? pg->read_for_write(next_pid) : pg->read(next_pid), pg };
 		remain += page.size();
 		cur_buf = page.block() + (page.size() - remain);

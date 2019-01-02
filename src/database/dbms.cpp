@@ -619,6 +619,8 @@ void dbms::select_rows(const select_info_t *info)
 			expr_names
 		);
 
+		std::fprintf(output_file, "\n");
+
 		return;
 	}
 
