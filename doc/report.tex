@@ -40,7 +40,7 @@
 \tableofcontents
 \clearpage
 \section{项目简介}
-TrivialDB是一个简单的数据库管理系统，我们实现了大部分常见的SQL语句和类型。同时支持多表连接、复杂表达式运算、多主键约束、外键约束、CHECK约束、UNIQUE和DEFAULT约束、聚集查询、利用B+树索引的查询优化。
+TrivialDB是一个简单的数据库管理系统，我们实现了大部分常见的SQL语句和类型。同时支持多表连接、复杂表达式运算、多主键约束、外键约束、CHECK约束、UNIQUE和DEFAULT约束、聚集查询、利用B+树索引的查询优化，同时，我们支持任意长度的VARCHAR类型。
 
 整个数据库基于一个自行实现的页式文件系统\footnote{没有使用提供的页式文件系统。}，同时支持多种不同的页结构，大致分为B+树索引叶节点、B+树索引内部节点、B+树叶节点和B+树内部节点。在此之上，构建有B+树以及表和索引结构。
 
@@ -57,7 +57,7 @@ TrivialDB是一个简单的数据库管理系统，我们实现了大部分常�
 \begin{itemize}
 	\item 整型（INT）
 	\item 浮点型（FLOAT）
-	\item 字符串型（VARCHAR）
+	\item 字符串型（VARCHAR），可以支持\textbf{超过一个页大小}的长度。
 	\item 日期型（DATE），日期格式为``\texttt{YYYY-MM-dd}''。
 \end{itemize}
 日期类型的字面值和字符串相同，在实现中如果必要可以转换为字符串。
@@ -148,7 +148,7 @@ SELECT * FROM Persons, Infos, Datas WHERE Persons.PersonID = Infos.PersonID AND 
 \subsection{页结构}
 一个页可以被解释为多种不同的结构，其基本结构有三种：overflow、fixed、variant。每个页的前2个字节用于标识该页为何种类型。
 
-\paragraph{overflow页} 该页结构较为简单，用于存储过长的数据。其头部包含三个元素：页标识符（2字节）、页内容大小（2字节）和下一页的页号（4字节）。其于部分均用来存储溢出的数据。完整的溢出数据是用overflow页组成的链表存储。
+\paragraph{overflow页} 该页结构较为简单，用于存储过长的数据。其头部包含三个元素：页标识符（2字节）、页内容大小（2字节）和下一页的页号（4字节）。其于部分均用来存储溢出的数据。完整的溢出数据是用overflow页组成的链表存储。例如VARCHAR类型过长导致一条记录超过可以接受的长度，那么就会将多余的部分存储在此页。
 
 \paragraph{fixed页} 该页结构用于记录B+树的内部节点，其页头按顺序分别为
 \begin{table}[H]

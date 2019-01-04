@@ -52,9 +52,11 @@ public:
 	void iterate(std::vector<table_manager*> required_tables, expr_node_t *cond, Callback callback);
 
 	template<typename Callback>
-	void iterate_one_table(table_manager* table, expr_node_t *cond, Callback callback);
+	void iterate_one_table(table_manager* table,
+			expr_node_t *cond, Callback callback);
 	template<typename Callback>
-	bool iterate_two_tables_with_joint_cond_equal(table_manager* t1, table_manager *t2, expr_node_t *cond, Callback callback);
+	bool iterate_one_table_with_index(table_manager* table,
+			expr_node_t *cond, Callback callback);
 	template<typename Callback>
 	bool iterate_many_tables_impl(
 		const std::vector<table_manager*> &table_list,

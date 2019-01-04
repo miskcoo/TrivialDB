@@ -43,19 +43,11 @@ void dbms::iterate(
 	{
 		std::vector<record_manager*> rm_list(1);
 		std::vector<int> rid_list(1);
-		iterate_one_table(required_tables[0], cond, [&](table_manager *, record_manager *rm, int rid) -> bool {
+		iterate_one_table_with_index(required_tables[0], cond, [&](table_manager *, record_manager *rm, int rid) -> bool {
 			rm_list[0] = rm;
 			rid_list[0] = rid;
 			return callback(required_tables, rm_list, rid_list);
 		} );
-//	} else if(required_tables.size() == 2) {
-//		if(iterate_two_tables_with_joint_cond_equal(required_tables[0], required_tables[1], cond, callback))
-//		{
-//			std::puts("[Info] Join two tables using index.");
-//		} else {
-//			iterate_many_tables(required_tables, cond, callback);
-//			std::puts("[Info] Join two tables by enumerating.");
-//		}
 	} else {
 		iterate_many_tables(required_tables, cond, callback);
 		std::puts("[Info] Join many tables by enumerating.");
@@ -63,87 +55,88 @@ void dbms::iterate(
 }
 
 template<typename Callback>
-bool dbms::iterate_two_tables_with_joint_cond_equal(
-		table_manager* tb1,
-		table_manager* tb2,
+bool dbms::iterate_one_table_with_index(
+		table_manager* table,
 		expr_node_t *cond,
 		Callback callback)
 {
-	expr_node_t *join_cond = get_join_cond(cond);
-	if(!join_cond) return false;
+	std::vector<expr_node_t*> and_cond;
+	extract_and_cond(cond, and_cond);
+	expr_node_t *index_cond = nullptr;
+	index_manager *index = nullptr;
 
-	if(join_cond->op != OPERATOR_EQ)
-		return false;
-
-	if(std::strcmp(join_cond->left->column_ref->table, tb1->get_table_name()) != 0)
-		std::swap(tb1, tb2);
-
-	int cid1 = tb1->lookup_column(join_cond->left->column_ref->column);
-	int cid2 = tb2->lookup_column(join_cond->right->column_ref->column);
-	if(cid1 < 0 || cid2 < 0)
-		return false;
-
-	index_manager *idx1 = tb1->get_index(cid1);
-	index_manager *idx2 = tb2->get_index(cid2);
-
-	if(!idx1 && !idx2)
+	auto get_index = [&](column_ref_t *col) -> index_manager*
 	{
-		std::printf("[Info] No index for %s.%s and %s.%s\n",
-				join_cond->left->column_ref->table,
-				join_cond->left->column_ref->column,
-				join_cond->right->column_ref->table,
-				join_cond->right->column_ref->column);
-		return false;
-	}
+		int cid = table->lookup_column(col->column);
+		if(cid < 0) return nullptr;
+		return table->get_index(cid);
+	};
 
-	if(idx2 == nullptr)
+	for(expr_node_t *expr : and_cond)
 	{
-		std::swap(tb1, tb2);
-		std::swap(idx1, idx2);
-		std::swap(cid1, cid2);
-	}
-
-	std::vector<table_manager*> table_list { tb1, tb2 };
-	std::vector<record_manager*> record_list(2);
-	std::vector<int> rid_list(2);
-
-	// iterate table 1 first
-	auto tb1_it = tb1->get_record_iterator_lower_bound(0);
-	for(; !tb1_it.is_end(); tb1_it.next())
-	{
-		int tb1_rid;
-		record_manager tb1_rm(tb1_it.get_pager());
-		tb1_rm.open(tb1_it.get(), false);
-		tb1_rm.read(&tb1_rid, 4);
-		tb1->cache_record(&tb1_rm);
-
-		// iterate table 2 by index
-		const char *tb1_col = tb1->get_cached_column(cid1);
-		if(tb1_col == nullptr) continue;
-		auto tb2_it = idx2->get_iterator_lower_bound(tb1_col);
-		for(; !tb2_it.is_end(); tb2_it.next())
+		if(expr->op == OPERATOR_EQ)
 		{
-			int tb2_rid;
-			record_manager tb2_rm = tb2->open_record_from_index_lower_bound(tb2_it.get(), &tb2_rid);
-			tb2->cache_record(&tb2_rm);
+			if(expr->right->term_type == TERM_COLUMN_REF)
+				std::swap(expr->right, expr->left);
 
-			bool result = false;
-			try {
-				result = typecast::expr_to_bool(expression::eval(cond));
-			} catch(const char *msg) {
-				std::puts(msg);
-				return true;
+			if(expr->left->term_type == TERM_COLUMN_REF && expr->right->term_type != TERM_COLUMN_REF)
+			{
+				index = get_index(expr->left->column_ref);
+				if(index)
+				{
+					index_cond = expr;
+					break;
+				}
 			}
-
-			if(!result) break;
-
-			record_list[0] = &tb1_rm;
-			record_list[1] = &tb2_rm;
-			rid_list[0] = tb1_rid;
-			rid_list[1] = tb2_rid;
-			if(!callback(table_list, record_list, rid_list))
-				break;
 		}
+	}
+
+	if(!index_cond)
+	{
+		iterate_one_table(table, cond, callback);
+		return false;
+	}
+
+	char *key = nullptr;
+	switch(index_cond->right->term_type)
+	{
+		case TERM_INT:
+		case TERM_DATE:
+			key = (char*)&index_cond->right->val_i;
+			break;
+		case TERM_FLOAT:
+			key = (char*)&index_cond->right->val_f;
+			break;
+		case TERM_STRING:
+			key = index_cond->right->val_s;
+			break;
+		case TERM_BOOL:
+			key = (char*)&index_cond->right->val_b;
+			break;
+		default:
+			break;
+	}
+	
+	auto it = index->get_iterator_lower_bound(key);
+	for(; !it.is_end(); it.next())
+	{
+		int rid;
+		record_manager rm = table->open_record_from_index_lower_bound(it.get(), &rid);
+		table->cache_record(&rm);
+
+		bool join_ret = false;
+		try {
+			join_ret = typecast::expr_to_bool(expression::eval(index_cond));
+		} catch(const char *msg) {
+			std::puts(msg);
+			iterate_one_table(table, cond, callback);
+			return false;
+		}
+
+		if(!join_ret) break;
+
+		if(!callback(table, &rm, rid))
+			break;
 	}
 
 	return true;
@@ -183,6 +176,7 @@ void dbms::iterate_one_table(
 
 void dbms::extract_and_cond(expr_node_t *cond, std::vector<expr_node_t*> &and_cond)
 {
+	if(!cond) return;
 	if(cond->op == OPERATOR_AND)
 	{
 		extract_and_cond(cond->left, and_cond);
@@ -619,8 +613,6 @@ void dbms::select_rows(const select_info_t *info)
 			expr_names
 		);
 
-		std::fprintf(output_file, "\n");
-
 		return;
 	}
 
@@ -819,7 +811,7 @@ void dbms::delete_rows(const delete_info_t *info)
 		return;
 	}
 
-	iterate_one_table(tm, info->where,
+	iterate_one_table_with_index(tm, info->where,
 		[&delete_list](table_manager*, record_manager*, int rid) -> bool {
 			delete_list.push_back(rid);
 			return true;
