@@ -145,7 +145,7 @@ typedef struct select_info_t {
 
 typedef struct table_join_info_t {
 	table_join_type_t join_type;
-	char *table, *join_table;
+	char *table, *join_table, *alias;
 	expr_node_t *cond;
 } table_join_info_t;
 

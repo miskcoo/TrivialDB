@@ -20,7 +20,7 @@
 struct expr_node_t;
 class table_manager
 {
-	bool is_open;
+	bool is_open, is_mirror;
 	table_header_t header;
 	std::shared_ptr<int_btree> btr;
 	std::shared_ptr<pager> pg;
@@ -45,6 +45,7 @@ public:
 	bool open(const char *table_name);
 	void drop();
 	void close();
+	std::shared_ptr<table_manager> mirror(const char *alias_name);
 
 	int lookup_column(const char *col_name);
 	int get_column_offset(int col) { return header.col_offset[col]; }

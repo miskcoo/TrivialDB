@@ -562,6 +562,7 @@ void dbms::select_rows(const select_info_t *info)
 	__cache_clear_guard __guard;
 	
 	// get required tables
+	std::vector<std::shared_ptr<table_manager>> alias_tables;
 	std::vector<table_manager*> required_tables;
 	for(linked_list_t *table_l = info->tables; table_l; table_l = table_l->next)
 	{
@@ -571,7 +572,16 @@ void dbms::select_rows(const select_info_t *info)
 		{
 			std::fprintf(stderr, "[Error] table `%s` doesn't exists.\n", table_info->table);
 			return;
-		} else required_tables.push_back(tm);
+		} else {
+			if(table_info->alias == nullptr)
+			{
+				required_tables.push_back(tm);
+			} else {
+				auto alias = tm->mirror(table_info->alias);
+				alias_tables.push_back(alias);
+				required_tables.push_back(alias.get());
+			}
+		}
 	}
 
 	// get select expression name

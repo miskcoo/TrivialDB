@@ -185,6 +185,12 @@ table_item          : table_name {
 						$$->join_type = TABLE_JOIN_NONE;
 						$$->table = $1;
 					}
+				    | table_name AS IDENTIFIER {
+					 	$$ = (table_join_info_t*)calloc(1, sizeof(table_join_info_t));
+						$$->join_type = TABLE_JOIN_NONE;
+						$$->table = $1;
+						$$->alias = $3;
+					}
 					;
 
 select_expr_list_s  : select_expr_list { $$ = $1; }

@@ -158,6 +158,8 @@ void execute_select(const select_info_t *select_info)
 		free(data->table);
 		if(data->join_table)
 			free(data->join_table);
+		if(data->alias)
+			free(data->alias);
 		expression::free_exprnode(data->cond);
 		free(data);
 	} );

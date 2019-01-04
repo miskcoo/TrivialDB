@@ -140,6 +140,11 @@ SELECT * FROM Persons, Infos, Datas WHERE Persons.PersonID = Infos.PersonID AND 
 SELECT * FROM Persons, Infos, Datas WHERE Persons.PersonID = Infos.PersonID AND Datas.ID = Infos.PersonID;
 \end{minted}
 具体的优化方法以及何种查询可以优化见实现细节中``查询优化''。
+\subsection{表别名}
+我们在多表连接查询时支持通过别名（alias）的方式对一个表进行连接，例如
+\begin{minted}[breaklines]{sql}
+SELECT * FROM Persons AS P1, Persons AS P2 WHERE P1.PersonID = P2.PersonID;
+\end{minted}
 \section{底层数据结构}
 \subsection{页式文件系统}
 页式文件系统是最基本的结构，依赖于操作系统的文件管理。一个页的大小为4KB，一个文件的读写均按照页为单位。为了读写的效率，我们采用缓存机制，每次访问页后会缓存在内存中，并且写操作不会马上写入文件。缓存的替换方法为当其填满后会将最少访问的一个写回文件。

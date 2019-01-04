@@ -121,6 +121,22 @@ void table_manager::load_check_constraints()
 	}
 }
 
+std::shared_ptr<table_manager> table_manager::mirror(const char *alias_name)
+{
+	auto tb = std::make_shared<table_manager>();
+	tb->tname = alias_name;
+	tb->is_open = true;
+	tb->is_mirror = true;
+	tb->pg = pg;
+	tb->btr = btr;
+	tb->header = header;
+	tb->allocate_temp_record();
+	std::memcpy(tb->indices, indices, sizeof(indices));
+	std::memcpy(tb->check_conds, check_conds, sizeof(check_conds));
+	std::strcpy(tb->header.table_name, alias_name);
+	return tb;
+}
+
 bool table_manager::open(const char *table_name)
 {
 	if(is_open) return false;
@@ -137,6 +153,7 @@ bool table_manager::open(const char *table_name)
 	load_indices();
 	load_check_constraints();
 
+	is_mirror = false;
 	return is_open = true;
 }
 
@@ -155,6 +172,7 @@ bool table_manager::create(const char *table_name, const table_header_t *header)
 	load_indices();
 	load_check_constraints();
 
+	is_mirror = false;
 	return is_open = true;
 }
 
@@ -171,17 +189,22 @@ void table_manager::drop()
 void table_manager::close()
 {
 	if(!is_open) return;
-	std::string thead = tname + ".thead";
-	std::string tdata = tname + ".tdata";
 
-	header.index_root[header.main_index] = btr->get_root_page_id();
-	free_indices();
-	free_check_constraints();
+	if(!is_mirror)
+	{
+		std::string thead = tname + ".thead";
+		std::string tdata = tname + ".tdata";
 
-	std::ofstream ofs(thead, std::ios::binary);
-	ofs.write((char*)&header, sizeof(header));
+		header.index_root[header.main_index] = btr->get_root_page_id();
+		free_indices();
+		free_check_constraints();
+
+		std::ofstream ofs(thead, std::ios::binary);
+		ofs.write((char*)&header, sizeof(header));
+		pg->close();
+	}
+
 	btr = nullptr;
-	pg->close();
 	pg = nullptr;
 	delete []tmp_record;
 	delete []tmp_cache;
@@ -190,6 +213,7 @@ void table_manager::close()
 	tmp_record = nullptr;
 	tmp_index = nullptr;
 	is_open = false;
+	is_mirror = false;
 }
 
 int table_manager::lookup_column(const char *col_name)
@@ -299,6 +323,7 @@ int table_manager::insert_record()
 
 bool table_manager::remove_record(int rid)
 {
+	assert(!is_mirror);
 	record_manager rm = get_record_ptr(rid);
 	if(rm.valid())
 	{
@@ -401,6 +426,7 @@ void table_manager::dump_record(FILE *f, record_manager *rm)
 
 bool table_manager::modify_record(int rid, int col, const void* data)
 {
+	assert(!is_mirror);
 	record_manager rec = get_record_ptr(rid, true);
 	if(!rec.valid()) return false;
 	assert(col >= 0 && col < header.col_num);
