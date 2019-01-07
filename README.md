@@ -21,7 +21,7 @@ make -j8
 
 编译后可以选择在`testcase`目录下运行`python3 run_test.py`运行测试程序。
 
-##系统功能
+## 系统功能
 
 ### 数据类型
 
@@ -34,7 +34,7 @@ make -j8
 
 日期类型的字面值和字符串相同，在实现中如果必要可以转换为字符串。
 
-###SQL语句
+### SQL语句
 
 我们支持的SQL语句一共有如下几种
 
@@ -52,7 +52,7 @@ make -j8
  * 创建索引：`CREATE INDEX ...`
  * 删除索引：`DROP INDEX ...`
 
-###复杂表达式处理
+### 复杂表达式处理
 
 表达式大致可以分为两种：算术表达式和条件表达式。由于采用Bison进行解析，可以支持任意深度嵌套的复杂表达式。我们所支持的基本运算主要如下
 
@@ -72,14 +72,14 @@ SELECT * FROM students WHERE grades IN ('A', 'B', 'C');
 SELECT * FROM students WHERE name IS NOT NULL;
 ```
 
-###聚集查询
+### 聚集查询
 我们实现了五种聚集查询函数COUNT、SUM、AVG、MIN和MAX。其中COUNT不支持DISTINCT关键字。例如
 
 ```sql
 SELECT COUNT(*) FROM customer WHERE age > 18;
 SELECT AVG(age) FROM customer WHERE age <= 18;
 ```
-###属性完整性约束
+### 属性完整性约束
 我们支持多种属性完整性约束，分别是
 
  * 主键约束。一个表可以有多个列联合起来作为主键，只有在所有主键都相同时才认为两条记录有冲突，即这种情况下主键是一个元组。
@@ -106,7 +106,7 @@ CREATE TABLE Infos (
     FOREIGN KEY (PersonID) REFERENCES Persons(PersonID)
 );
 ```
-###多表连接查询
+### 多表连接查询
 在SELECT语句中，我们支持任意多表的连接操作，例如
 ```sql
 SELECT * FROM A, B, C WHERE A.ID = B.ID AND C.Name = A.Name
@@ -119,7 +119,7 @@ SELECT * FROM Persons, Infos, Datas WHERE Persons.PersonID = Infos.PersonID AND 
 SELECT * FROM Persons, Infos, Datas WHERE Persons.PersonID = Infos.PersonID AND Datas.ID = Infos.PersonID;
 ```
 具体的优化方法以及何种查询可以优化见文档中"查询优化"部分。
-###表别名
+### 表别名
 我们在多表连接查询时支持通过别名（alias）的方式对一个表进行连接，例如
 ```sql
 SELECT * FROM Persons AS P1, Persons AS P2 WHERE P1.PersonID = P2.PersonID;
