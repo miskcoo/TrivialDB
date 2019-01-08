@@ -4,6 +4,7 @@ project(trivial_db)
 
 add_subdirectory(src/parser)
 
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_BINARY_DIR build)
 set(EXECUTABLE_OUTPUT_PATH build)
 set(SOURCE

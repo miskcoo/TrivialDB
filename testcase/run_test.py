@@ -4,7 +4,7 @@ import os
 import sys
 import time
 
-for filename in os.listdir('.'):
+for filename in list(os.listdir('.')):
     if filename.endswith('.sql'):
         f0 = filename[:-4]
         t_start = time.time()
