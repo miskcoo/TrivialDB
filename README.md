@@ -46,7 +46,7 @@ make -j8
  * 删除数据库：`DROP DATABASE ...`
  * 切换数据库：`USE ...`
  * 显示数据库信息：`SHOW DATABASE ...`
- * 创建表：`CREATE TABLE \dot`
+ * 创建表：`CREATE TABLE ...`
  * 删除表：`DROP TABLE ...`
  * 显示表信息：`SHOW TABLE ...`
  * 创建索引：`CREATE INDEX ...`
